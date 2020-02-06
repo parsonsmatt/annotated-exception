@@ -57,6 +57,7 @@ test-suite located-exception-test
   build-depends:
       base >=4.7 && <5
     , hspec
+    , hspec-discover
     , located-exception
     , safe-exceptions
   default-language: Haskell2010
