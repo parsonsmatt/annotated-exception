@@ -10,7 +10,7 @@ spec = do
     describe "Eq" $ do
         it "works for equal values" $ do
             toAnnotation "hello" == toAnnotation "hello"
-        it "works for non-equal values of smae type" $ do
+        it "works for non-equal values of same type" $ do
             toAnnotation "a" /= toAnnotation "b"
         it "works for values of different types" $ do
             toAnnotation (1 :: Int) /= toAnnotation "a"

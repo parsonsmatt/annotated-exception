@@ -1,6 +1,6 @@
 {-# LANGUAGE ConstraintKinds     #-}
-{-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE DataKinds           #-}
+{-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE GADTs               #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving  #-}
@@ -11,12 +11,13 @@ module Data.Annotation
     , module Data.Proxy
     ) where
 
-import Data.Proxy
 import           Data.Dynamic
+import           Data.Proxy
+import           Data.Set      (Set)
+import qualified Data.Set      as Set
 import           Data.String
-import qualified Data.Text          as Text
+import qualified Data.Text     as Text
 import           Data.Typeable
-import           Type.Reflection
 
 type AnnC a = (Typeable a, Eq a, Show a)
 
@@ -60,3 +61,8 @@ tryAnnotations
     -> [Annotation]
     -> [Either a Annotation]
 tryAnnotations p = map (tryAnnotation p)
+
+annotationTypes
+    :: [Annotation]
+    -> Set TypeRep
+annotationTypes = Set.fromList . map (\(Annotation a) -> typeOf a)
