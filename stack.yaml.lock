@@ -3,7 +3,14 @@
 # For more information, please see the documentation at:
 #   https://docs.haskellstack.org/en/stable/lock_files
 
-packages: []
+packages:
+- completed:
+    hackage: plucky-0.0.0.1@sha256:9b08e180bf4af6d26ac4e04a2d5f6d4529cefd4e8a310283f817b55b72beef56,1142
+    pantry-tree:
+      size: 370
+      sha256: d233cf157af4fcc6898e6dae6743fc65d3877aa801e75053a825d42fcb6c1cac
+  original:
+    hackage: plucky-0.0.0.1
 snapshots:
 - completed:
     size: 524164

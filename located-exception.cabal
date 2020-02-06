@@ -30,6 +30,7 @@ source-repository head
 library
   exposed-modules:
       Control.Exception.Located
+      Data.Annotation
   other-modules:
       Paths_located_exception
   hs-source-dirs:
@@ -45,6 +46,7 @@ test-suite located-exception-test
   main-is: Spec.hs
   other-modules:
       Control.Exception.LocatedSpec
+      Data.AnnotationSpec
       Paths_located_exception
   hs-source-dirs:
       test
