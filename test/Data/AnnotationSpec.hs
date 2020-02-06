@@ -18,4 +18,4 @@ spec = do
         it "works" $ do
             show (toAnnotation (3 :: Int))
                 `shouldBe`
-                    "Annotation 3"
+                    "3"

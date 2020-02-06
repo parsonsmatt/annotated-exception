@@ -35,7 +35,8 @@ instance Eq Annotation where
             Nothing ->
                 False
 
-deriving instance Show Annotation
+instance Show Annotation where
+    show (Annotation a) = show a
 
 instance IsString Annotation where
     fromString = Annotation . Text.pack
