@@ -60,4 +60,6 @@ test-suite located-exception-test
     , hspec-discover
     , located-exception
     , safe-exceptions
+  build-tools:
+    hspec-discover
   default-language: Haskell2010
