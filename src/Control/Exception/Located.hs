@@ -19,9 +19,7 @@ import qualified Control.Exception.Safe as Safe
 import           Data.Text
 import           Data.Typeable
 
--- | This is a placeholder type synonym while I work out the throwing and
--- catching bits.
-type Annotation = Text
+import Data.Annotation
 
 data LocatedException exception
     = LocatedException
