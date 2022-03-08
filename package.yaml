@@ -1,6 +1,6 @@
-name:                located-exception
+name:                annotated-exception
 version:             0.1.0.0
-github:              "parsonsmatt/located-exception"
+github:              "parsonsmatt/annotated-exception"
 license:             BSD3
 author:              "Matt Parsons"
 maintainer:          parsonsmatt@gmail.com
@@ -17,17 +17,22 @@ category:            Control
 # To avoid duplicated efforts in documentation and dealing with the
 # complications of embedding Haddock markup inside cabal files, it is
 # common to point users to the README.md file.
-description:         Please see the README on Github at <https://github.com/parsonsmatt/located-exception#readme>
+description:         Please see the README on Github at <https://github.com/parsonsmatt/annotated-exception#readme>
 
 dependencies:
 - base >= 4.7 && < 5
 - safe-exceptions
+- containers
+- text
 
 library:
   source-dirs: src
+  ghc-options:
+    - -Wall
+
 
 tests:
-  located-exception-test:
+  annotated-exception-test:
     main:                Spec.hs
     source-dirs:         test
     ghc-options:
@@ -35,5 +40,5 @@ tests:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
-    - located-exception
+    - annotated-exception
     - hspec

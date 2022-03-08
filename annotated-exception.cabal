@@ -1,18 +1,16 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.31.2.
+-- This file has been generated from package.yaml by hpack version 0.34.4.
 --
 -- see: https://github.com/sol/hpack
---
--- hash: 7e71e520fdb5c5b3016ecf6d01c3e89aa3ebbcd424f790a01860502f5ac8e8b3
 
-name:           located-exception
+name:           annotated-exception
 version:        0.1.0.0
 synopsis:       Exceptions, with checkpoints and context.
-description:    Please see the README on Github at <https://github.com/parsonsmatt/located-exception#readme>
+description:    Please see the README on Github at <https://github.com/parsonsmatt/annotated-exception#readme>
 category:       Control
-homepage:       https://github.com/parsonsmatt/located-exception#readme
-bug-reports:    https://github.com/parsonsmatt/located-exception/issues
+homepage:       https://github.com/parsonsmatt/annotated-exception#readme
+bug-reports:    https://github.com/parsonsmatt/annotated-exception/issues
 author:         Matt Parsons
 maintainer:     parsonsmatt@gmail.com
 copyright:      2018 Matt Parsons
@@ -22,44 +20,42 @@ build-type:     Simple
 extra-source-files:
     README.md
     ChangeLog.md
-tested-with:
-    GHC ==8.8.2 || ==8.6.5 || ==8.4.4 || ==8.2.2
 
 source-repository head
   type: git
-  location: https://github.com/parsonsmatt/located-exception
+  location: https://github.com/parsonsmatt/annotated-exception
 
 library
   exposed-modules:
-      Control.Exception.Located
+      Control.Exception.Annotated
       Data.Annotation
   other-modules:
-      Paths_located_exception
+      Paths_annotated_exception
   hs-source-dirs:
       src
+  ghc-options: -Wall
   build-depends:
       base >=4.7 && <5
+    , containers
     , safe-exceptions
     , text
-    , containers
   default-language: Haskell2010
 
-test-suite located-exception-test
+test-suite annotated-exception-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
-      Control.Exception.LocatedSpec
+      Control.Exception.AnnotatedSpec
       Data.AnnotationSpec
-      Paths_located_exception
+      Paths_annotated_exception
   hs-source-dirs:
       test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      base >=4.7 && <5
+      annotated-exception
+    , base >=4.7 && <5
+    , containers
     , hspec
-    , hspec-discover
-    , located-exception
     , safe-exceptions
-  build-tools:
-    hspec-discover
+    , text
   default-language: Haskell2010

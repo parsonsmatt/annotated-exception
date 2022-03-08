@@ -1,9 +1,11 @@
-{-# language TypeApplications, FlexibleContexts, DataKinds #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE TypeApplications #-}
 
 module Data.AnnotationSpec where
 
-import Test.Hspec
 import Data.Annotation
+import Test.Hspec
 
 spec :: Spec
 spec = do

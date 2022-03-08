@@ -1,4 +1,0 @@
---command "stack ghci located-exception:lib located-exception:test:located-exception-test"
---test main
---warnings
---restart located-exception.cabal
