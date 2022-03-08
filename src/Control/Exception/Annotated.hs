@@ -37,6 +37,7 @@ import qualified Control.Exception.Safe as Safe
 import Data.Annotation
 import Data.Typeable
 import GHC.Stack
+import Data.Maybe
 
 -- | The 'AnnotatedException' type wraps an @exception@ with
 -- a @['Annotation']@. This can provide a sort of a manual stack trace with
@@ -212,3 +213,11 @@ checkpointMany ann action =
                 e'
             Nothing -> do
                 new exn
+
+-- | Retrieves the 'CallStack' from an 'AnnotatedException' if one is present.
+--
+-- @since 0.1.0.0
+annotatedExceptionCallStack :: AnnotatedException exception -> Maybe CallStack
+annotatedExceptionCallStack exn =
+    let (stacks, _rest) = callStackInAnnotations (annotations exn)
+    in listToMaybe stacks
