@@ -24,7 +24,25 @@
 -- want to define your own 'checkpoint' that uses a custom type that you
 -- want to enforce throughout your application.
 module Control.Exception.Annotated
-    ( module Control.Exception.Annotated
+    ( -- * The Main Type
+      AnnotatedException(..)
+    , new
+    , throwWithCallStack
+    -- * Annotating Exceptions
+    , checkpoint
+    , checkpointMany
+    -- * Handling Exceptions
+    , catch
+    , tryAnnotated
+    -- * Manipulating Annotated Exceptions
+    , check
+    , hide
+    , annotatedExceptionCallStack
+
+    -- * Re-exports from "Data.Annotation"
+    , Annotation(..)
+    , CallStackAnnotation(..)
+    -- * Re-exports from "Control.Exception.Safe"
     , Exception(..)
     , Safe.SomeException(..)
     , Safe.throw
@@ -37,6 +55,7 @@ import qualified Control.Exception.Safe as Safe
 import Data.Annotation
 import Data.Typeable
 import GHC.Stack
+import Data.Maybe
 
 -- | The 'AnnotatedException' type wraps an @exception@ with
 -- a @['Annotation']@. This can provide a sort of a manual stack trace with
@@ -162,8 +181,8 @@ catch action handler =
 -- | Like 'catch', but always returns a 'AnnotatedException'.
 --
 -- @since 0.1.0.0
-tryAnnotation :: (Exception e, MonadCatch m) => m a -> m (Either (AnnotatedException e) a)
-tryAnnotation action =
+tryAnnotated :: (Exception e, MonadCatch m) => m a -> m (Either (AnnotatedException e) a)
+tryAnnotated action =
     (Right <$> action) `catch` (pure . Left)
 
 -- | Attaches the 'CallStack' to the 'AnnotatedException' that is thrown.
@@ -212,3 +231,11 @@ checkpointMany ann action =
                 e'
             Nothing -> do
                 new exn
+
+-- | Retrieves the 'CallStack' from an 'AnnotatedException' if one is present.
+--
+-- @since 0.1.0.0
+annotatedExceptionCallStack :: AnnotatedException exception -> Maybe CallStack
+annotatedExceptionCallStack exn =
+    let (stacks, _rest) = callStackInAnnotations (annotations exn)
+    in listToMaybe stacks

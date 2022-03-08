@@ -7,9 +7,9 @@ To provide an annotation, you'd use the function `checkpoint`.
 This will attach the provided value to any exception that bubbles up through it.
 
 ```haskell
-import Control.Exception.Annotated 
+import Control.Exception.Annotated
 
-data MyException = MyException 
+data MyException = MyException
     deriving (Show, Exception)
 
 main :: IO ()
@@ -33,8 +33,8 @@ data OtherException = OtherException
 
 woah :: IO ()
 woah = do
-    let 
-        checkpointed = 
+    let
+        checkpointed =
             checkpoint "Foo" (throw MyException)
         handler MyException =
             throw OtherException
@@ -51,6 +51,8 @@ Notice how the `checkpoint` call doesn't cover the `throw OtherException` - the 
 λ> (checkpoint "Foo" (throw MyException)) `catch` \MyException -> throw OtherException
 *** Exception: AnnotatedException {annotations = ["Foo"], exception = OtherException}
 ```
+
+You can also attach a `CallStack` to any exception using `throwWithCallStack`.
 
 Now, you're about to report your exceptions, up near `main`.
 We can use `try` in this module to always get the annotations.
