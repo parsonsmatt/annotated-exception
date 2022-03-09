@@ -1,3 +1,6 @@
+{-# LANGUAGE DeriveFoldable #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
@@ -7,7 +10,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
-{-# language DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 
 -- | This module defines an exception wrapper 'AnnotatedException' that
 -- carries a list of 'Annotation's, along with some helper methods for
@@ -36,10 +38,12 @@ module Control.Exception.Annotated
     -- * Handling Exceptions
     , catch
     , tryAnnotated
+
     -- * Manipulating Annotated Exceptions
     , check
     , hide
     , annotatedExceptionCallStack
+    , addCallStackToException
 
     -- * Re-exports from "Data.Annotation"
     , Annotation(..)
@@ -55,9 +59,9 @@ import Control.Exception.Safe
        (Exception, MonadCatch, MonadThrow, SomeException(..))
 import qualified Control.Exception.Safe as Safe
 import Data.Annotation
+import Data.Maybe
 import Data.Typeable
 import GHC.Stack
-import Data.Maybe
 
 -- | The 'AnnotatedException' type wraps an @exception@ with
 -- a @['Annotation']@. This can provide a sort of a manual stack trace with
