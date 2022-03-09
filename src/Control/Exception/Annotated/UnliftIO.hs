@@ -37,12 +37,19 @@ module Control.Exception.Annotated.UnliftIO
     , MonadUnliftIO(..)
     ) where
 
-import qualified Control.Exception.Safe as Safe
 import Control.Exception.Annotated hiding
-    (throwWithCallStack
-    , checkpoint, checkpointCallStackWith, checkpointMany, catch, catches, try,
-    tryAnnotated, throw)
+       ( catch
+       , catches
+       , checkpoint
+       , checkpointCallStackWith
+       , checkpointMany
+       , throw
+       , throwWithCallStack
+       , try
+       , tryAnnotated
+       )
 import qualified Control.Exception.Annotated as Catch
+import qualified Control.Exception.Safe as Safe
 import Control.Monad.IO.Unlift
 import GHC.Stack
 
