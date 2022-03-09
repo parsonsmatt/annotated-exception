@@ -1,5 +1,5 @@
 name:                annotated-exception
-version:             0.1.1.0
+version:             0.1.2.0
 github:              "parsonsmatt/annotated-exception"
 license:             BSD3
 author:              "Matt Parsons"
@@ -24,6 +24,7 @@ dependencies:
 - safe-exceptions
 - containers
 - text
+- unliftio-core
 
 library:
   source-dirs: src
