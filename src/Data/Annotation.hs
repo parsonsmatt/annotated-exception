@@ -156,7 +156,14 @@ newtype CallStackAnnotation = CallStackAnnotation
 --
 -- @since 0.1.0.0
 callStackAnnotation :: HasCallStack => Annotation
-callStackAnnotation = Annotation $ CallStackAnnotation $ getCallStack callStack
+callStackAnnotation = callStackToAnnotation callStack
+
+-- | Stuff a 'CallStack' into an 'Annotation' via the 'CallStackAnnotation'
+-- newtype wrapper.
+--
+-- @since 0.1.0.0
+callStackToAnnotation :: CallStack -> Annotation
+callStackToAnnotation cs = Annotation $ CallStackAnnotation $ getCallStack cs
 
 -- | Attempt to convert an 'Annotation' back into a 'CallStack'.
 --
