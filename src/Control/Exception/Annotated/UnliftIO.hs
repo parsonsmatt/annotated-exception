@@ -15,6 +15,7 @@ module Control.Exception.Annotated.UnliftIO
     , checkpointCallStackWith
     -- * Handling Exceptions
     , catch
+    , catches
     , tryAnnotated
     , try
 
@@ -120,3 +121,17 @@ try
 try action =
     withRunInIO $ \runInIO ->
         liftIO $ Catch.try (runInIO action)
+
+-- | Like 'Catch.catches', bt uses 'MonadUnliftIO' instead of 'MonadCatch'.
+--
+-- @since 0.1.2.0
+catches
+    :: MonadUnliftIO m
+    => m a
+    -> [Handler m a]
+    -> m a
+catches action handlers =
+    withRunInIO $ \runInIO -> do
+        let f (Handler k) = Handler (\e -> runInIO (k e))
+        liftIO $ catches (runInIO action) (map f handlers)
+  where
