@@ -38,6 +38,7 @@ module Control.Exception.Annotated
     -- * Handling Exceptions
     , catch
     , tryAnnotated
+    , try
 
     -- * Manipulating Annotated Exceptions
     , check
@@ -52,11 +53,11 @@ module Control.Exception.Annotated
     , Exception(..)
     , Safe.SomeException(..)
     , Safe.throw
-    , Safe.try
+    , Handler (..)
     ) where
 
 import Control.Exception.Safe
-       (Exception, MonadCatch, MonadThrow, SomeException(..))
+       (Exception, MonadCatch, MonadThrow, SomeException(..), Handler(..))
 import qualified Control.Exception.Safe as Safe
 import Data.Annotation
 import Data.Maybe
@@ -177,11 +178,26 @@ check = traverse Safe.fromException
 -- @since 0.1.0.0
 catch :: (Exception e, MonadCatch m) => m a -> (e -> m a) -> m a
 catch action handler =
-    Safe.catches
-        action
-        [ Safe.Handler handler
-        , Safe.Handler $ \(AnnotatedException anns e) ->
-            checkpointMany anns $ handler e
+    catches action [Handler handler]
+
+-- | Like 'Safe.catches', but this function enhance the provided 'Handler's
+-- to "see through" any 'AnnotatedException's.
+--
+-- @since 0.1.1.0
+catches :: (MonadCatch m) => m a -> [Handler m a] -> m a
+catches action handlers =
+    Safe.catches action (mkAnnotatedHandlers handlers)
+
+-- | Extends each 'Handler' in the list with a variant that sees through
+-- the 'AnnotatedException' and re-annotates any rethrown exceptions.
+--
+-- @since 0.1.1.0
+mkAnnotatedHandlers :: MonadCatch m => [Handler m a] -> [Handler m a]
+mkAnnotatedHandlers xs =
+    xs >>= \(Handler hndlr) ->
+        [ Handler hndlr
+        , Handler $ \(AnnotatedException anns e) ->
+            checkpointMany anns $ hndlr e
         ]
 
 -- | Like 'catch', but always returns a 'AnnotatedException'.
@@ -190,6 +206,26 @@ catch action handler =
 tryAnnotated :: (Exception e, MonadCatch m) => m a -> m (Either (AnnotatedException e) a)
 tryAnnotated action =
     (Right <$> action) `catch` (pure . Left)
+
+-- | Like 'Safe.try', but can also handle an 'AnnotatedException' or the
+-- underlying value. Useful when you want to 'try' to catch a type of
+-- exception, but you may not care about the 'Annotation's that it may or
+-- may not have.
+--
+-- Example:
+--
+-- > Left exn <- try $ throw (AnnotatedException [] TestException)
+-- > exn == TestException
+--
+-- > Left exn <- try $ throw TestException
+-- > exn == AnnotatedException [] TestException
+--
+-- @since 0.1.0.1
+try :: (Exception e, MonadCatch m) => m a -> m (Either e a)
+try action = do
+    (Right <$> action)
+      `catches`
+          mkAnnotatedHandlers [Handler (\exn -> pure $ Left exn)]
 
 -- | Attaches the 'CallStack' to the 'AnnotatedException' that is thrown.
 --
