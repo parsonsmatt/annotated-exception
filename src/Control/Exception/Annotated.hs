@@ -31,6 +31,8 @@ module Control.Exception.Annotated
     -- * Annotating Exceptions
     , checkpoint
     , checkpointMany
+    , checkpointCallStack
+    , checkpointCallStackWith
     -- * Handling Exceptions
     , catch
     , tryAnnotated
@@ -219,6 +221,47 @@ flatten (AnnotatedException a (AnnotatedException b c)) = AnnotatedException (a 
 checkpoint :: MonadCatch m => Annotation -> m a -> m a
 checkpoint ann = checkpointMany [ann]
 
+-- | Add the current 'CallStack' to the checkpoint. This function searches any
+-- thrown exception for a pre-existing 'CallStack' and will not overwrite or
+-- replace the 'CallStack' if one is already present.
+--
+-- Primarily useful when you're wrapping a third party library.
+--
+-- @since 0.1.0.0
+checkpointCallStackWith
+    :: (MonadCatch m, HasCallStack)
+    => [Annotation]
+    -> m a
+    -> m a
+checkpointCallStackWith ann action =
+    action `Safe.catch` \(exn :: SomeException) ->
+        Safe.throw
+            . annotate ann
+            . addCallStackToException callStack
+            $ case Safe.fromException exn of
+                Just (e' :: AnnotatedException SomeException) ->
+                    case annotatedExceptionCallStack e' of
+                        Nothing ->
+                            annotate ann e'
+                        Just _preexistingCallstack ->
+                            e'
+                Nothing -> do
+                    annotate ann $ new exn
+
+-- | Add the current 'CallStack' to the checkpoint. This function searches any
+-- thrown exception for a pre-existing 'CallStack' and will not overwrite or
+-- replace the 'CallStack' if one is already present.
+--
+-- Primarily useful when you're wrapping a third party library.
+--
+-- @since 0.1.0.0
+checkpointCallStack
+    :: (MonadCatch m, HasCallStack)
+    => m a
+    -> m a
+checkpointCallStack =
+    checkpointCallStackWith []
+
 -- | Add the list of 'Annotations' to any exception thrown in the following
 -- action.
 --
@@ -239,3 +282,19 @@ annotatedExceptionCallStack :: AnnotatedException exception -> Maybe CallStack
 annotatedExceptionCallStack exn =
     let (stacks, _rest) = callStackInAnnotations (annotations exn)
     in listToMaybe stacks
+
+-- | Adds a 'CallStack' to the given 'AnnotatedException'. This function will
+-- search through the existing annotations, and it will not add a second
+-- 'CallStack' to the list.
+--
+-- @since 0.1.0.0
+addCallStackToException
+    :: CallStack
+    -> AnnotatedException exception
+    -> AnnotatedException exception
+addCallStackToException cs exn =
+    case annotatedExceptionCallStack exn of
+        Nothing ->
+            annotate [callStackToAnnotation cs] exn
+        Just _ ->
+            exn
