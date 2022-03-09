@@ -57,7 +57,7 @@ module Control.Exception.Annotated
     ) where
 
 import Control.Exception.Safe
-       (Exception, MonadCatch, MonadThrow, SomeException(..), Handler(..))
+       (Exception, Handler(..), MonadCatch, MonadThrow, SomeException(..))
 import qualified Control.Exception.Safe as Safe
 import Data.Annotation
 import Data.Maybe
