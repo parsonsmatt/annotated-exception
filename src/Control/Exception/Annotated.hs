@@ -37,6 +37,7 @@ module Control.Exception.Annotated
     , checkpointCallStackWith
     -- * Handling Exceptions
     , catch
+    , catches
     , tryAnnotated
     , try
 
@@ -183,7 +184,7 @@ catch action handler =
 -- | Like 'Safe.catches', but this function enhance the provided 'Handler's
 -- to "see through" any 'AnnotatedException's.
 --
--- @since 0.1.1.0
+-- @since 0.1.2.0
 catches :: (MonadCatch m) => m a -> [Handler m a] -> m a
 catches action handlers =
     Safe.catches action (mkAnnotatedHandlers handlers)

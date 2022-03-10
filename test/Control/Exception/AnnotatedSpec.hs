@@ -114,6 +114,14 @@ spec = do
                     exn `shouldBe` TestException
             action `shouldThrow` (== new TestException)
 
+    describe "catches" $ do
+        it "is exported" $ do
+            let
+                _x :: IO a -> [Handler IO a] -> IO a
+                _x = catches
+            pass
+
+
     describe "checkpoint" $ do
         it "adds annotations" $ do
             Left exn <- try (checkpoint "Here" (throw TestException))
