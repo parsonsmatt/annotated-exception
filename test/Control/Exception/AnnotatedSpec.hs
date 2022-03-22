@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
@@ -38,6 +39,16 @@ spec = do
                 `shouldBe`
                     Just (new TestException)
 
+        it "can i guess also parse into a nested Annotated" $ do
+            fromException (toException (new TestException))
+                `shouldBe`
+                    Just (new (new TestException))
+
+        it "does not loop infinitely if the wrong type is selected" $ do
+            fromException (toException TestException)
+                `shouldNotBe`
+                    Just (new $ userError "uh oh")
+
     describe "throw" $ do
         it "wraps exceptions" $ do
             throw TestException
@@ -70,6 +81,16 @@ spec = do
                     \(AnnotatedException _ (_ :: SomeException)) ->
                         pass
 
+        it "permits other types to pass through" $ do
+            let action =
+                    Safe.throw (userError "uh oh")
+                        `Safe.catch`
+                            \(AnnotatedException _ TestException) ->
+                                expectationFailure "Should not catch"
+            action
+                `shouldThrow`
+                    (userError "uh oh" ==)
+
     describe "try" $ do
         let subject :: (Exception e, Exception e') => e -> IO e'
             subject exn = do
@@ -93,6 +114,24 @@ spec = do
             it "can catch an Annotated exception" $ do
                 exn <- subject TestException
                 exn `shouldBe` new TestException
+
+        describe "when the wrong error is tried " $ do
+            let
+                boom :: IO a
+                boom =
+                    Safe.throwIO $ userError "uh oh"
+            it "does not catch the exception" $ do
+                let
+                    scenario = do
+                        eres <- try boom
+                        case eres of
+                            Left TestException ->
+                                pure ()
+                            Right () ->
+                                pure ()
+                scenario
+                    `shouldThrow`
+                        (\e -> userError "uh oh" == e) -- TestException
 
         describe "nesting behavior" $ do
             it "can catch at any level of nesting" $ do
