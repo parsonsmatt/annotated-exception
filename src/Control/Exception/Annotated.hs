@@ -65,6 +65,7 @@ import Data.Maybe
 import Data.Typeable
 import GHC.Stack
 
+
 -- | The 'AnnotatedException' type wraps an @exception@ with
 -- a @['Annotation']@. This can provide a sort of a manual stack trace with
 -- programmer provided data.
@@ -93,15 +94,13 @@ instance Applicative AnnotatedException where
 -- an empty context, so catching a @'AnnotatedException' e@ will also catch
 -- a regular @e@ and give it an empty set of annotations.
 --
--- Likewise, if a @'AnnotatedException' ('AnnotatedException' e)@ is thrown
--- somehow, then the 'fromException' will flatten it and combine their
--- contexts.
---
 -- For the most up to date details, see the test suite.
 --
 -- @since 0.1.0.0
 instance (Exception exception) => Exception (AnnotatedException exception) where
-    toException loc = SomeException $ hide loc
+    toException loc =
+        tryFlatten $ SomeException $ hide loc
+
     fromException (SomeException exn)
         | Just x <- cast exn
         =
@@ -114,9 +113,6 @@ instance (Exception exception) => Exception (AnnotatedException exception) where
         | Just (e :: exception) <- Safe.fromException exn
         =
             pure $ new e
-        | Just x <- flatten <$> Safe.fromException exn
-        =
-            pure x
         | otherwise
         =
             Nothing
@@ -223,10 +219,10 @@ tryAnnotated action =
 --
 -- @since 0.1.0.1
 try :: (Exception e, MonadCatch m) => m a -> m (Either e a)
-try action = do
+try action =
     (Right <$> action)
-      `catches`
-          mkAnnotatedHandlers [Handler (\exn -> pure $ Left exn)]
+      `catch`
+          (\exn -> pure $ Left exn)
 
 -- | Attaches the 'CallStack' to the 'AnnotatedException' that is thrown.
 --
@@ -245,6 +241,14 @@ throwWithCallStack e =
 -- @since 0.1.0.0
 flatten :: AnnotatedException (AnnotatedException e)  -> AnnotatedException e
 flatten (AnnotatedException a (AnnotatedException b c)) = AnnotatedException (a ++ b) c
+
+tryFlatten :: SomeException -> SomeException
+tryFlatten exn =
+    case Safe.fromException exn of
+        Just (a :: AnnotatedException (AnnotatedException SomeException)) ->
+            SomeException $ flatten a
+        Nothing ->
+            exn
 
 -- | Add a single 'Annotation' to any exceptions thrown in the following
 -- action.
@@ -303,7 +307,7 @@ checkpointCallStack
 checkpointCallStack =
     checkpointCallStackWith []
 
--- | Add the list of 'Annotations' to any exception thrown in the following
+-- | Add the list of 'Annotation' to any exception thrown in the following
 -- action.
 --
 -- @since 0.1.0.0
