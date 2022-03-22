@@ -94,10 +94,6 @@ instance Applicative AnnotatedException where
 -- an empty context, so catching a @'AnnotatedException' e@ will also catch
 -- a regular @e@ and give it an empty set of annotations.
 --
--- Likewise, if a @'AnnotatedException' ('AnnotatedException' e)@ is thrown
--- somehow, then the 'fromException' will flatten it and combine their
--- contexts.
---
 -- For the most up to date details, see the test suite.
 --
 -- @since 0.1.0.0
@@ -198,8 +194,7 @@ mkAnnotatedHandlers xs =
     xs >>= \(Handler hndlr) ->
         [ Handler hndlr
         , Handler $ \(AnnotatedException anns e) ->
-            checkpointMany anns $
-                hndlr e
+            checkpointMany anns $ hndlr e
         ]
 
 -- | Like 'catch', but always returns a 'AnnotatedException'.
@@ -312,7 +307,7 @@ checkpointCallStack
 checkpointCallStack =
     checkpointCallStackWith []
 
--- | Add the list of 'Annotations' to any exception thrown in the following
+-- | Add the list of 'Annotation' to any exception thrown in the following
 -- action.
 --
 -- @since 0.1.0.0
