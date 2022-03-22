@@ -65,22 +65,6 @@ import Data.Maybe
 import Data.Typeable
 import GHC.Stack
 
-import qualified Debug.Trace as Debug
-import System.IO.Unsafe
-import Data.IORef
-
-traceRef :: IORef [String]
-traceRef = unsafePerformIO $ newIORef []
-{-# NOINLINE traceRef #-}
-
-trace :: String -> a -> a
-trace str a = unsafePerformIO $ do
-    xs <- fmap ("    " ++) <$> atomicModifyIORef traceRef (\strs -> (str : strs, strs))
-    pure
-        -- $ Debug.trace (unlines ("***trace***" : str : "context: " : xs))
-        a
-{-# NOINLINE trace #-}
-
 
 -- | The 'AnnotatedException' type wraps an @exception@ with
 -- a @['Annotation']@. This can provide a sort of a manual stack trace with
@@ -124,23 +108,17 @@ instance (Exception exception) => Exception (AnnotatedException exception) where
     fromException (SomeException exn)
         | Just x <- cast exn
         =
-            trace "casting inner SomeException" $ pure x
+            pure x
         | Just (AnnotatedException ann (e :: SomeException)) <- cast exn
         , Just a <- Safe.fromException e
         =
-            trace "got an Annotated SomeException, casting inner" $
             pure $ AnnotatedException ann a
     fromException exn
         | Just (e :: exception) <- Safe.fromException exn
         =
-            trace "got a bare exception, promoting it" $ pure $ new e
---        | Just x <- flatten <$> Safe.fromException exn
---        =
---            trace "flattened an AnnotatedException" $
---            pure x
+            pure $ new e
         | otherwise
         =
-            trace "whoops" $
             Nothing
 
 -- | Attach an empty @['Annotation']@ to an exception.
@@ -217,11 +195,9 @@ catches action handlers =
 -- @since 0.1.1.0
 mkAnnotatedHandlers :: MonadCatch m => [Handler m a] -> [Handler m a]
 mkAnnotatedHandlers xs =
-    trace "starting annotated handlers" $
     xs >>= \(Handler hndlr) ->
-        [ Handler $ \e -> trace "in regular handler" $ hndlr e
-        , trace "evaluating annoated handler" $ Handler $ \(AnnotatedException anns e) ->
-              trace "in Annotated handler" $
+        [ Handler hndlr
+        , Handler $ \(AnnotatedException anns e) ->
             checkpointMany anns $
                 hndlr e
         ]
@@ -249,7 +225,6 @@ tryAnnotated action =
 -- @since 0.1.0.1
 try :: (Exception e, MonadCatch m) => m a -> m (Either e a)
 try action =
-    trace "starting try" $ do
     (Right <$> action)
       `catch`
           (\exn -> pure $ Left exn)
