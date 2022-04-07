@@ -8,7 +8,7 @@
 module Control.Exception.Annotated.UnliftIO
     ( -- * The Main Type
       AnnotatedException(..)
-    , new
+    , exceptionWithCallStack
     , throwWithCallStack
     -- * Annotating Exceptions
     , checkpoint

@@ -2,6 +2,18 @@
 
 ## Unreleased changes
 
+## 0.2.0.0
+
+- []()
+    - Removed the `Eq` instance for `Annotation` as well as the `Eq` constraint
+      in `AnnC`. These instances were only used for testing, and prevented the
+      natural use of `CallStack` in a `[Annotation]`.
+    - Removed the `Eq` instance for `AnnotatedException` as a consequence of
+      dropping the `Eq` instance on `Annotation`.
+    - Removed the `new` function. Use `pure` or `exceptionWithCallStack` instead.
+    - Fixed a double-annotation bug in `checkpointCallStackWith`.
+    - `checkpointCallStack` appends to the call-site list.
+
 ## 0.1.2.1
 
 - [#8](https://github.com/parsonsmatt/annotated-exception/pull/8)

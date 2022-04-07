@@ -16,6 +16,7 @@ module Data.Annotation
     , module Data.Proxy
     ) where
 
+import Data.Foldable
 import GHC.Stack
 import Data.Dynamic
 import Data.Either
@@ -33,11 +34,12 @@ import Data.Typeable
 -- information out of it.
 --
 -- @since 0.1.0.0
-type AnnC a = (Typeable a, Eq a, Show a)
+type AnnC a = (Typeable a, Show a)
 
 -- | An 'Annotation' is a wrapper around a value that includes a 'Typeable'
 -- constraint so we can later unpack it. It is essentially a 'Dynamic, but
--- we also include 'Show' and 'Eq' so it's more useful.
+-- we also include 'Show' so that you can always fall back to simply 'show'ing
+-- the 'Annotation' if it is otherwise unrecognized.
 --
 -- @since 0.1.0.0
 data Annotation where
@@ -49,19 +51,13 @@ data Annotation where
 -- |
 --
 -- @since 0.1.0.0
-instance Eq Annotation where
-    Annotation (a :: a) == Annotation (b :: b) =
-        case eqT @a @b of
-            Just Refl ->
-                a == b
-            Nothing ->
-                False
-
--- |
---
--- @since 0.1.0.0
 instance Show Annotation where
-    show (Annotation a) = show a
+    show (Annotation a) =
+        fromMaybe (show a) $ asum
+            [ cast a
+            , Text.unpack <$> cast a
+            ]
+
 
 -- |
 --
@@ -145,32 +141,41 @@ mapMaybeAnnotation f ann =
 -- | A wrapper type for putting a 'CallStack' into an 'Annotation'. We need
 -- this because 'CallStack' does not have an 'Eq' instance.
 --
+-- Deprecated in 0.2.0.0 since you can just put a 'CallStack' directly in an
+-- 'Annotation' now that we have no need for an 'Eq' constraint on it.
+--
 -- @since 0.1.0.0
 newtype CallStackAnnotation = CallStackAnnotation
     { unCallStackAnnotation :: [(String, SrcLoc)]
     }
     deriving (Eq, Show)
 
+{-# DEPRECATED CallStackAnnotation "You can just use `CallStack` directly now." #-}
+
 -- | Grab an 'Annotation' corresponding to the 'CallStack' that is
 -- currently in scope.
 --
 -- @since 0.1.0.0
 callStackAnnotation :: HasCallStack => Annotation
-callStackAnnotation = callStackToAnnotation callStack
+callStackAnnotation = Annotation callStack
 
 -- | Stuff a 'CallStack' into an 'Annotation' via the 'CallStackAnnotation'
 -- newtype wrapper.
 --
 -- @since 0.1.0.0
 callStackToAnnotation :: CallStack -> Annotation
-callStackToAnnotation cs = Annotation $ CallStackAnnotation $ getCallStack cs
+callStackToAnnotation = Annotation
 
--- | Attempt to convert an 'Annotation' back into a 'CallStack'.
+-- | Convert the legacy 'CallStackAnnoation' into a 'CallStack'.
+--
+-- Deprecated in 0.2.0.0 since you can use 'CallStack' directly.
 --
 -- @since 0.1.0.0
 callStackFromAnnotation :: CallStackAnnotation -> CallStack
 callStackFromAnnotation ann =
     fromCallSiteList $ unCallStackAnnotation ann
+
+{-# DEPRECATED callStackFromAnnotation "You can use 'CallStack' directly in annotations as of 0.2.0.0." #-}
 
 -- | Extract the 'CallStack's from the @['Annotation']@. Any 'Annotation'
 -- not corresponding to a 'CallStack' will be in the second element of the
@@ -178,8 +183,7 @@ callStackFromAnnotation ann =
 --
 -- @since 0.1.0.0
 callStackInAnnotations :: [Annotation] -> ([CallStack], [Annotation])
-callStackInAnnotations anns =
-    let (callStacks, rest) =
-            tryAnnotations anns
-    in
-        (fmap callStackFromAnnotation callStacks, rest)
+callStackInAnnotations =
+    tryAnnotations
+
+{-# DEPRECATED callStackInAnnotations "You can just use 'tryAnnotations' directly as of 0.2.0.0." #-}

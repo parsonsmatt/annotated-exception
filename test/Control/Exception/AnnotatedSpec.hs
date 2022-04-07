@@ -1,3 +1,5 @@
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -9,10 +11,20 @@ module Control.Exception.AnnotatedSpec where
 
 import Test.Hspec
 
+import Data.Annotation
+import GHC.Stack
 import Control.Exception.Annotated
 import qualified Control.Exception.Safe as Safe
 
-data TextException = TestException
+import Data.AnnotationSpec ()
+import Data.Maybe
+
+instance Eq CallStack where
+    a == b = show a == show b
+
+deriving stock instance (Eq e) => Eq (AnnotatedException e)
+
+data TestException = TestException
     deriving (Eq, Show, Exception)
 
 instance Eq SomeException where
@@ -21,33 +33,36 @@ instance Eq SomeException where
 pass :: Expectation
 pass = pure ()
 
+emptyAnnotation :: e -> AnnotatedException e
+emptyAnnotation = pure
+
 spec :: Spec
 spec = do
     describe "AnnotatedException can fromException a" $ do
         it "different type" $ do
             fromException (toException TestException)
                 `shouldBe`
-                    Just (new TestException)
+                    Just (emptyAnnotation TestException)
 
         it "SomeException" $ do
             fromException (SomeException TestException)
                 `shouldBe`
-                    Just (new (SomeException TestException))
+                    Just (emptyAnnotation (SomeException TestException))
 
         it "nested AnnotatedException" $ do
-            fromException (toException (new (new TestException)))
+            fromException (toException (emptyAnnotation (emptyAnnotation TestException)))
                 `shouldBe`
-                    Just (new TestException)
+                    Just (emptyAnnotation TestException)
 
         it "can i guess also parse into a nested Annotated" $ do
-            fromException (toException (new TestException))
+            fromException (toException (emptyAnnotation TestException))
                 `shouldBe`
-                    Just (new (new TestException))
+                    Just (emptyAnnotation (emptyAnnotation TestException))
 
         it "does not loop infinitely if the wrong type is selected" $ do
             fromException (toException TestException)
                 `shouldNotBe`
-                    Just (new $ userError "uh oh")
+                    Just (emptyAnnotation $ userError "uh oh")
 
     describe "throw" $ do
         it "wraps exceptions" $ do
@@ -91,6 +106,54 @@ spec = do
                 `shouldThrow`
                     (userError "uh oh" ==)
 
+    describe "tryAnnotated" $ do
+        let subject :: (Exception e, Exception e') => e -> IO (AnnotatedException e')
+            subject exn = do
+                Left exn' <- tryAnnotated (throw exn)
+                pure exn'
+
+        it "promotes to empty with no annotations" $ do
+            exn <- subject TestException
+            exn `shouldBe` AnnotatedException [] TestException
+
+        it "preserves annotations" $ do
+            exn <- subject $ AnnotatedException ["hello"] TestException
+            exn `shouldBe` AnnotatedException ["hello"] TestException
+
+        it "preserves annotations added via checkpoint" $ do
+            Left exn <- tryAnnotated $ do
+                checkpoint "hello" $ do
+                    throw TestException
+            exn `shouldBe` AnnotatedException ["hello"] TestException
+
+        it "doesn't mess up if trying the wrong type" $ do
+            let
+                action = do
+                    Left exn <- tryAnnotated $ do
+                        checkpoint "hello" $ do
+                            throw TestException
+                    exn `shouldBe` AnnotatedException ["hello"] (userError "oh no")
+            action `shouldThrow` (== AnnotatedException ["hello"] TestException)
+
+    describe "throwWithCallstack" $ do
+        it "includes a CallStack on the given exception" $ do
+            throwWithCallStack TestException
+                `shouldThrow`
+                    isJust . annotatedExceptionCallStack @TestException
+        describe "interaction with checkpointCallStack" $ do
+            it "only has one CallStack" $ do
+                let
+                    action = do
+                        checkpointCallStack $ do
+                            throwWithCallStack TestException
+                action
+                    `Safe.catch` \(e :: AnnotatedException TestException) -> do
+                        annotations e
+                            `callStackFunctionNamesShouldBe`
+                                ["throwWithCallStack"
+                                , "checkpointCallStack"
+                                ]
+
     describe "try" $ do
         let subject :: (Exception e, Exception e') => e -> IO e'
             subject exn = do
@@ -108,12 +171,12 @@ spec = do
 
         describe "when throwing Annotated" $ do
             it "can catch a non-Annotated exception" $ do
-                exn <- subject $ new TestException
+                exn <- subject $ emptyAnnotation TestException
                 exn `shouldBe` TestException
 
             it "can catch an Annotated exception" $ do
                 exn <- subject TestException
-                exn `shouldBe` new TestException
+                exn `shouldBe` emptyAnnotation TestException
 
         describe "when the wrong error is tried " $ do
             let
@@ -136,22 +199,22 @@ spec = do
         describe "nesting behavior" $ do
             it "can catch at any level of nesting" $ do
                 subject TestException
-                    >>= (`shouldBe` new TestException)
+                    >>= (`shouldBe` emptyAnnotation TestException)
                 subject TestException
-                    >>= (`shouldBe` new (new TestException))
+                    >>= (`shouldBe` emptyAnnotation (emptyAnnotation TestException))
                 subject TestException
-                    >>= (`shouldBe` new (new (new TestException)))
+                    >>= (`shouldBe` emptyAnnotation (emptyAnnotation (emptyAnnotation TestException)))
 
     describe "Safe.try" $ do
         it "can catch a located exception" $ do
             Left exn <- Safe.try (Safe.throw TestException)
-            exn `shouldBe` new TestException
+            exn `shouldBe` emptyAnnotation TestException
 
         it "does not catch an AnnotatedException" $ do
             let action = do
-                    Left exn <- Safe.try (Safe.throw $ new TestException)
+                    Left exn <- Safe.try (Safe.throw $ emptyAnnotation TestException)
                     exn `shouldBe` TestException
-            action `shouldThrow` (== new TestException)
+            action `shouldThrow` (== emptyAnnotation TestException)
 
     describe "catches" $ do
         it "is exported" $ do
@@ -212,3 +275,103 @@ spec = do
                 checkpoint "B" $
                 throw TestException
             exn `shouldBe` AnnotatedException ["A", "B"] TestException
+
+        it "handles CallStack nicely" $ do
+            Left (AnnotatedException anns TestException) <- try $
+                checkpoint (Annotation callStack) $
+                    checkpoint (Annotation callStack) $
+                        throwWithCallStack TestException
+
+            anns `callStackFunctionNamesShouldBe`
+                [ "throwWithCallStack"
+                ]
+
+    describe "HasCallStack behavior" $ do
+        -- This section of the test suite exists to verify that some behavior
+        -- acts how I expect it to. And/or learn how it behaves. Lol.
+        let foo :: HasCallStack => IO ()
+            foo = throwWithCallStack TestException
+            bar :: HasCallStack => IO ()
+            bar = foo
+            baz :: HasCallStack => IO ()
+            baz = bar
+
+        it "should have source location" $ do
+            foo
+                `Safe.catch`
+                    \(AnnotatedException anns TestException) -> do
+                        anns
+                            `callStackFunctionNamesShouldBe`
+                                [ "throwWithCallStack"
+                                , "foo"
+                                ]
+
+        it "appears to be throw-site first, then other entires" $ do
+            baz
+                `Safe.catch`
+                    \(AnnotatedException anns TestException) -> do
+                        anns
+                            `callStackFunctionNamesShouldBe`
+                                [ "throwWithCallStack"
+                                , "foo"
+                                , "bar"
+                                , "baz"
+                                ]
+
+        describe "addCallstackToException" $ do
+            let
+                makeCs0 :: HasCallStack => IO CallStack
+                makeCs0 = pure callStack
+                makeCs1 :: HasCallStack => IO CallStack
+                makeCs1 = pure callStack
+
+            (cs0, cs1) <- runIO $ (,) <$> makeCs0 <*> makeCs1
+
+            let baseException =
+                    AnnotatedException [] TestException
+
+            it "does not drop any other annotations" $ do
+                addCallStackToException cs0 (AnnotatedException ["hello"] TestException)
+                    `shouldBe`
+                        AnnotatedException ["hello", Annotation cs0] TestException
+            it "should add a CallStack to an empty AnnotatedException" $ do
+                addCallStackToException cs0 baseException
+                    `shouldBe`
+                        AnnotatedException [Annotation cs0] TestException
+
+            it "should not add a second CallStack to an AnnotatedException" $ do
+                annotations (addCallStackToException cs1 (addCallStackToException cs0 baseException))
+                    `shouldSatisfy` (1 ==) . length
+
+            it "should merge CallStack as HasCallStack does" $ do
+                [expectedAnnotation] <-
+                    (undefined <$ foo) `Safe.catch`
+                        \(AnnotatedException anns TestException) ->
+                            pure anns
+                Just expectedCallStack <- pure $ castAnnotation expectedAnnotation
+
+                let
+                    fooCS =
+                        callStackFromFunctionName "foo"
+                    throwWithCallStackCS =
+                        callStackFromFunctionName "throwWithCallStack"
+                    actualAnnotations =
+                        annotations $
+                            addCallStackToException fooCS  $
+                                addCallStackToException
+                                    throwWithCallStackCS
+                                    baseException
+                actualAnnotations
+                    `callStackFunctionNamesShouldBe`
+                        map fst (getCallStack expectedCallStack)
+
+callStackFunctionNamesShouldBe :: HasCallStack => [Annotation] -> [String] -> IO ()
+callStackFunctionNamesShouldBe anns names = do
+    let ([callStack], []) = tryAnnotations anns
+    map fst (getCallStack callStack)
+        `shouldBe`
+            names
+
+callStackFromFunctionName :: String -> CallStack
+callStackFromFunctionName str =
+    fromCallSiteList [(str, undefined)]
