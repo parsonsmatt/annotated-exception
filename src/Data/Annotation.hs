@@ -52,12 +52,12 @@ data Annotation where
 --
 -- @since 0.1.0.0
 instance Show Annotation where
-    show (Annotation a) =
-        fromMaybe (show a) $ asum
-            [ cast a
-            , Text.unpack <$> cast a
-            ]
-
+    showsPrec p (Annotation a) =
+        showParen (p > 10) $
+            showString "Annotation @"
+            . showsPrec 11 (typeOf a)
+            . showString " "
+            . showsPrec 11 a
 
 -- |
 --

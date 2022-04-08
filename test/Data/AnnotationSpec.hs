@@ -13,10 +13,18 @@ import Test.Hspec
 spec :: Spec
 spec = do
     describe "Show" $ do
-        it "works" $ do
-            show (toAnnotation (3 :: Int))
+        it "includes type information" $ do
+            show (Annotation @Int 3)
                 `shouldBe`
-                    "3"
+                    "Annotation @Int 3"
+        it "uses parens" $ do
+            show (Annotation @(Maybe Int) (Just 3))
+                `shouldBe`
+                    "Annotation @(Maybe Int) (Just 3)"
+        it "is cool with strings" $ do
+            show (Annotation @String "Hello")
+                `shouldBe`
+                    "Annotation @[Char] \"Hello\""
 
 instance Eq Annotation where
     Annotation (a :: a) == Annotation (b :: b) =
