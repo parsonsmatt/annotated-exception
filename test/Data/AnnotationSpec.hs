@@ -1,13 +1,13 @@
 {-# LANGUAGE DataKinds #-}
-{-# language ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
 module Data.AnnotationSpec where
 
-import Data.Typeable
 import Data.Annotation
+import Data.Typeable
 import Test.Hspec
 
 spec :: Spec
