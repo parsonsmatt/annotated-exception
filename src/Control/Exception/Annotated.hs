@@ -353,10 +353,10 @@ addCallStackToException
     :: CallStack
     -> AnnotatedException exception
     -> AnnotatedException exception
-addCallStackToException cs (AnnotatedException annotations e) =
+addCallStackToException cs (AnnotatedException annotations' e) =
     AnnotatedException anns' e
   where
-    anns' = go annotations
+    anns' = go annotations'
     -- not a huge fan of the direct recursion, but it seems easier than trying
     -- to finagle a `foldr` or something
     go [] =
@@ -386,8 +386,7 @@ fromSrcLocOrd (a, b, c, d, e, f, g) =
 --   O(n * log n)
 -- Vendored from GHC
 ordNub :: Ord a => [a] -> [a]
-ordNub xs
-  = go Set.empty xs
+ordNub = go Set.empty
   where
     go _ [] = []
     go s (x:xs)

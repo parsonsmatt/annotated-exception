@@ -16,9 +16,7 @@ module Data.Annotation
     , module Data.Proxy
     ) where
 
-import Data.Dynamic
 import Data.Either
-import Data.Foldable
 import Data.Maybe
 import Data.Proxy
 import Data.Set (Set)
@@ -37,7 +35,7 @@ import GHC.Stack
 type AnnC a = (Typeable a, Show a)
 
 -- | An 'Annotation' is a wrapper around a value that includes a 'Typeable'
--- constraint so we can later unpack it. It is essentially a 'Dynamic, but
+-- constraint so we can later unpack it. It is essentially a 'Data.Dynamic.Dynamic', but
 -- we also include 'Show' so that you can always fall back to simply 'show'ing
 -- the 'Annotation' if it is otherwise unrecognized.
 --
