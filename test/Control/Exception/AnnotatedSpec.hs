@@ -114,17 +114,18 @@ spec = do
 
         it "promotes to empty with no annotations" $ do
             exn <- subject TestException
-            exn `shouldBe` AnnotatedException [] TestException
+            exn `shouldBeWithoutCallStackInAnnotations` AnnotatedException [] TestException
 
         it "preserves annotations" $ do
             exn <- subject $ AnnotatedException ["hello"] TestException
-            exn `shouldBe` AnnotatedException ["hello"] TestException
+            exn `shouldBeWithoutCallStackInAnnotations` AnnotatedException ["hello"] TestException
 
         it "preserves annotations added via checkpoint" $ do
             Left exn <- tryAnnotated $ do
                 checkpoint "hello" $ do
                     throw TestException
-            exn `shouldBe` AnnotatedException ["hello"] TestException
+            exn `shouldBeWithoutCallStackInAnnotations`
+                AnnotatedException ["hello"] TestException
 
         it "doesn't mess up if trying the wrong type" $ do
             let
@@ -133,7 +134,9 @@ spec = do
                         checkpoint "hello" $ do
                             throw TestException
                     exn `shouldBe` AnnotatedException ["hello"] (userError "oh no")
-            action `shouldThrow` (== AnnotatedException ["hello"] TestException)
+            action `catch` \ann ->
+                ann `shouldBeWithoutCallStackInAnnotations`
+                    AnnotatedException ["hello"] TestException
 
     describe "throwWithCallstack" $ do
         it "includes a CallStack on the given exception" $ do
@@ -163,7 +166,7 @@ spec = do
         describe "when throwing non-Annotated" $ do
             it "can add an empty annotation for a non-Annotated exception" $ do
                 exn <- subject TestException
-                exn `shouldBe` AnnotatedException [] TestException
+                exn `shouldBeWithoutCallStackInAnnotations` AnnotatedException [] TestException
 
             it "can catch a usual exception" $ do
                 exn <- subject TestException
@@ -176,7 +179,7 @@ spec = do
 
             it "can catch an Annotated exception" $ do
                 exn <- subject TestException
-                exn `shouldBe` emptyAnnotation TestException
+                exn `shouldBeWithoutCallStackInAnnotations` emptyAnnotation TestException
 
         describe "when the wrong error is tried " $ do
             let
@@ -199,11 +202,11 @@ spec = do
         describe "nesting behavior" $ do
             it "can catch at any level of nesting" $ do
                 subject TestException
-                    >>= (`shouldBe` emptyAnnotation TestException)
+                    >>= (`shouldBeWithoutCallStackInAnnotations` emptyAnnotation TestException)
                 subject TestException
-                    >>= (`shouldBe` emptyAnnotation (emptyAnnotation TestException))
+                    >>= (`shouldBeWithoutCallStackInAnnotations` emptyAnnotation (emptyAnnotation TestException))
                 subject TestException
-                    >>= (`shouldBe` emptyAnnotation (emptyAnnotation (emptyAnnotation TestException)))
+                    >>= (`shouldBeWithoutCallStackInAnnotations` emptyAnnotation (emptyAnnotation (emptyAnnotation TestException)))
 
     describe "Safe.try" $ do
         it "can catch a located exception" $ do
@@ -227,14 +230,16 @@ spec = do
     describe "checkpoint" $ do
         it "adds annotations" $ do
             Left exn <- try (checkpoint "Here" (throw TestException))
-            exn `shouldBe` AnnotatedException ["Here"] TestException
+            exn `shouldBeWithoutCallStackInAnnotations`
+                AnnotatedException ["Here"] TestException
 
         it "adds two annotations" $ do
             Left exn <- try $ do
                 checkpoint "Here" $ do
                     checkpoint "There" $ do
                         throw TestException
-            exn `shouldBe` AnnotatedException ["Here", "There"] TestException
+            exn `shouldBeWithoutCallStackInAnnotations`
+                AnnotatedException ["Here", "There"] TestException
 
         it "adds three annotations" $ do
             Left exn <- try $
@@ -242,7 +247,8 @@ spec = do
                 checkpoint "There" $
                 checkpoint "Everywhere" $
                 throw TestException
-            exn `shouldBe` AnnotatedException ["Here", "There", "Everywhere"] TestException
+            exn `shouldBeWithoutCallStackInAnnotations`
+                AnnotatedException ["Here", "There", "Everywhere"] TestException
 
         it "caught exceptions are propagated" $ do
             eresp <- try $
@@ -266,7 +272,8 @@ spec = do
             Left exn <- try $
                 checkpoint "Lmao" $
                 Safe.throw TestException
-            exn `shouldBe` AnnotatedException ["Lmao"] TestException
+            exn `shouldBeWithoutCallStackInAnnotations`
+                AnnotatedException ["Lmao"] TestException
 
         it "supports rethrowing" $ do
             Left exn <- try $
@@ -274,7 +281,7 @@ spec = do
                 flip catch (\TestException -> throw TestException) $
                 checkpoint "B" $
                 throw TestException
-            exn `shouldBe` AnnotatedException ["A", "B"] TestException
+            exn `shouldBeWithoutCallStackInAnnotations` AnnotatedException ["A", "B"] TestException
 
         it "handles CallStack nicely" $ do
             Left (AnnotatedException anns TestException) <- try $
@@ -284,6 +291,8 @@ spec = do
 
             anns `callStackFunctionNamesShouldBe`
                 [ "throwWithCallStack"
+                , "checkpoint"
+                , "checkpoint"
                 ]
 
     describe "HasCallStack behavior" $ do
@@ -371,6 +380,17 @@ callStackFunctionNamesShouldBe anns names = do
     map fst (getCallStack callStack)
         `shouldBe`
             names
+
+shouldBeWithoutCallStackInAnnotations
+    :: (HasCallStack, Eq e, Show e, Exception e)
+    => AnnotatedException e
+    -> AnnotatedException e
+    -> IO ()
+shouldBeWithoutCallStackInAnnotations (AnnotatedException exp e0) e1 = do
+    AnnotatedException (filterCallStack exp) e0 `shouldBe` e1
+  where
+    filterCallStack anns =
+        snd $ tryAnnotations @CallStack anns
 
 callStackFromFunctionName :: String -> CallStack
 callStackFromFunctionName str =

@@ -62,20 +62,20 @@ import GHC.Stack
 throwWithCallStack
     :: forall e m a. (MonadIO m, Exception e, HasCallStack)
     => e -> m a
-throwWithCallStack = liftIO . Catch.throwWithCallStack
+throwWithCallStack = liftIO . withFrozenCallStack . Catch.throwWithCallStack
 
 -- | Like 'Catch.throw', but uses 'MonadIO' instead of 'MonadThrow'.
 --
 -- @since 0.1.2.0
-throw :: forall e m a. (MonadIO m, Exception e) => e -> m a
-throw = liftIO . Catch.throw
+throw :: forall e m a. (MonadIO m, Exception e, HasCallStack) => e -> m a
+throw = liftIO . withFrozenCallStack Catch.throw
 
 -- | Like 'Catch.checkpoint', but uses 'MonadUnliftIO' instead of 'MonadCatch'.
 --
 -- @since 0.1.2.0
-checkpoint :: forall m a. (MonadUnliftIO m) => Annotation -> m a -> m a
+checkpoint :: forall m a. (MonadUnliftIO m, HasCallStack) => Annotation -> m a -> m a
 checkpoint ann action = withRunInIO $ \runInIO ->
-    liftIO $ Catch.checkpoint ann (runInIO action)
+    liftIO $ withFrozenCallStack (Catch.checkpoint ann) (runInIO action)
 
 -- | Like 'Catch.checkpointMany', but uses 'MonadUnliftIO' instead of
 -- 'MonadCatch'.

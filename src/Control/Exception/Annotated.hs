@@ -29,6 +29,7 @@ module Control.Exception.Annotated
     ( -- * The Main Type
       AnnotatedException(..)
     , exceptionWithCallStack
+    , throw
     , throwWithCallStack
     -- * Annotating Exceptions
     , checkpoint
@@ -53,7 +54,6 @@ module Control.Exception.Annotated
     -- * Re-exports from "Control.Exception.Safe"
     , Exception(..)
     , Safe.SomeException(..)
-    , Safe.throw
     , Handler (..)
     ) where
 
@@ -234,6 +234,14 @@ try action =
       `catch`
           (\exn -> pure $ Left exn)
 
+-- | Throws an 'Exception' and annotates it with the current 'CallStack'.
+--
+-- An alias for 'throwWithCallStack'.
+--
+-- @since 0.2.0.0
+throw :: (HasCallStack, MonadThrow m, Exception e) => e -> m a
+throw = withFrozenCallStack throwWithCallStack
+
 -- | Attaches the 'CallStack' to the 'AnnotatedException' that is thrown.
 --
 -- @since 0.1.0.0
@@ -275,11 +283,11 @@ tryFlatten exn =
 checkpoint :: (HasCallStack, MonadCatch m) => Annotation -> m a -> m a
 checkpoint ann = withFrozenCallStack (checkpointMany [ann])
 
--- | Add the current 'CallStack' to the checkpoint. This function searches any
--- thrown exception for a pre-existing 'CallStack' and will not overwrite or
--- replace the 'CallStack' if one is already present.
+-- | Add the current 'CallStack' to the checkpoint, along with the given
+-- annotations. This function merges 'CallStack's together, attempting to
+-- preserve the call site ordering as GHC does it.
 --
--- Primarily useful when you're wrapping a third party library.
+-- As of 0.2.0.0, an alias for 'checkpointMany'.
 --
 -- @since 0.1.0.0
 checkpointCallStackWith
@@ -287,7 +295,30 @@ checkpointCallStackWith
     => [Annotation]
     -> m a
     -> m a
-checkpointCallStackWith anns action =
+checkpointCallStackWith anns =
+    withFrozenCallStack (checkpointMany anns)
+
+{-# DEPRECATED checkpointCallStackWith "As of 0.2.0.0 this is exactly equivalent to `checkpointMany`." #-}
+
+-- | Adds only the current 'CallStack' to the checkpoint. This function searches
+-- any thrown exception for a pre-existing 'CallStack' and will merge the given
+-- pre-existing 'CallStack' with the one on this function, in an attempt to
+-- preserve the actual call history.
+--
+-- @since 0.1.0.0
+checkpointCallStack
+    :: (MonadCatch m, HasCallStack)
+    => m a
+    -> m a
+checkpointCallStack =
+    withFrozenCallStack (checkpoint (Annotation callStack))
+
+-- | Add the list of 'Annotation' to any exception thrown in the following
+-- action.
+--
+-- @since 0.1.0.0
+checkpointMany :: (MonadCatch m, HasCallStack) => [Annotation] -> m a -> m a
+checkpointMany anns action =
     action `Safe.catch` \(exn :: SomeException) ->
         Safe.throw
             . addCallStackToException callStack
@@ -297,33 +328,6 @@ checkpointCallStackWith anns action =
                     e'
                 Nothing -> do
                     pure exn
-
--- | Add the current 'CallStack' to the checkpoint. This function searches any
--- thrown exception for a pre-existing 'CallStack' and will not overwrite or
--- replace the 'CallStack' if one is already present.
---
--- Primarily useful when you're wrapping a third party library.
---
--- @since 0.1.0.0
-checkpointCallStack
-    :: (MonadCatch m, HasCallStack)
-    => m a
-    -> m a
-checkpointCallStack =
-    withFrozenCallStack (checkpointCallStackWith [])
-
--- | Add the list of 'Annotation' to any exception thrown in the following
--- action.
---
--- @since 0.1.0.0
-checkpointMany :: (MonadCatch m, HasCallStack) => [Annotation] -> m a -> m a
-checkpointMany anns action =
-    action `Safe.catch` \(exn :: SomeException) ->
-        Safe.throw . annotate anns $ case Safe.fromException exn of
-            Just (e' :: AnnotatedException SomeException) ->
-                e'
-            Nothing -> do
-                pure exn
 
 -- | Retrieves the 'CallStack' from an 'AnnotatedException' if one is present.
 --

@@ -13,6 +13,8 @@
     - Removed the `new` function. Use `pure` or `exceptionWithCallStack` instead.
     - Fixed a double-annotation bug in `checkpointCallStackWith`.
     - `checkpointCallStack` appends to the call-site list.
+    - Pretty much everything now merges the `CallStack`s together. `throw`
+      includes a `CallStack`, as do `checkpoint` and `checkpointMany`.
 
 ## 0.1.2.1
 
