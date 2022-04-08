@@ -62,7 +62,7 @@ import GHC.Stack
 throwWithCallStack
     :: forall e m a. (MonadIO m, Exception e, HasCallStack)
     => e -> m a
-throwWithCallStack = liftIO . withFrozenCallStack . Catch.throwWithCallStack
+throwWithCallStack = liftIO . withFrozenCallStack Catch.throwWithCallStack
 
 -- | Like 'Catch.throw', but uses 'MonadIO' instead of 'MonadThrow'.
 --
@@ -81,13 +81,15 @@ checkpoint ann action = withRunInIO $ \runInIO ->
 -- 'MonadCatch'.
 --
 -- @since 0.1.2.0
-checkpointMany :: forall m a. (MonadUnliftIO m) => [Annotation] -> m a -> m a
+checkpointMany :: forall m a. (MonadUnliftIO m, HasCallStack) => [Annotation] -> m a -> m a
 checkpointMany anns action =
     withRunInIO $ \runInIO ->
-        liftIO $ Catch.checkpointMany anns (runInIO action)
+        liftIO $ withFrozenCallStack Catch.checkpointMany anns (runInIO action)
 
 -- | Like 'Catch.checkpointCallStackWith', but uses 'MonadUnliftIO' instead of
 -- 'MonadCatch'.
+--
+-- Deprecated in 0.2.0.0 as it is now an alias for 'checkpointMany'.
 --
 -- @since 0.1.2.0
 checkpointCallStackWith
@@ -95,7 +97,9 @@ checkpointCallStackWith
     => [Annotation] -> m a -> m a
 checkpointCallStackWith anns action =
     withRunInIO $ \runInIO ->
-        liftIO $ Catch.checkpointCallStackWith anns (runInIO action)
+        liftIO $ withFrozenCallStack Catch.checkpointCallStackWith anns (runInIO action)
+
+{-# DEPRECATED checkpointCallStackWith "As of annotated-exception-0.2.0.0, this is an alias for checkpointMany" #-}
 
 -- | Like 'Catch.catch', but uses 'MonadUnliftIO' instead of 'MonadCatch'.
 --
@@ -143,4 +147,3 @@ catches action handlers =
     withRunInIO $ \runInIO -> do
         let f (Handler k) = Handler (\e -> runInIO (k e))
         liftIO $ catches (runInIO action) (map f handlers)
-  where
