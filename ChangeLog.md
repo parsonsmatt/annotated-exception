@@ -4,7 +4,7 @@
 
 ## 0.2.0.0
 
-- []()
+- [#12](https://github.com/parsonsmatt/annotated-exception/pull/12)
     - Removed the `Eq` instance for `Annotation` as well as the `Eq` constraint
       in `AnnC`. These instances were only used for testing, and prevented the
       natural use of `CallStack` in a `[Annotation]`.
