@@ -16,10 +16,9 @@ module Data.Annotation
     , module Data.Proxy
     ) where
 
-import Data.Foldable
-import GHC.Stack
 import Data.Dynamic
 import Data.Either
+import Data.Foldable
 import Data.Maybe
 import Data.Proxy
 import Data.Set (Set)
@@ -27,6 +26,7 @@ import qualified Data.Set as Set
 import Data.String
 import qualified Data.Text as Text
 import Data.Typeable
+import GHC.Stack
 
 -- | The constraints that the value inside an 'Annotation' must have.
 --

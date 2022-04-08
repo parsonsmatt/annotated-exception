@@ -57,12 +57,12 @@ module Control.Exception.Annotated
     , Handler (..)
     ) where
 
-import qualified Data.Set as Set
 import Control.Exception.Safe
        (Exception, Handler(..), MonadCatch, MonadThrow, SomeException(..))
 import qualified Control.Exception.Safe as Safe
 import Data.Annotation
 import Data.Maybe
+import qualified Data.Set as Set
 import Data.Typeable
 import GHC.Stack
 

@@ -1,9 +1,9 @@
-{-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE DeriveAnyClass #-}
-{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeApplications #-}
 
 {-# options_ghc -fno-warn-orphans -fno-warn-type-defaults #-}
 
@@ -11,10 +11,10 @@ module Control.Exception.AnnotatedSpec where
 
 import Test.Hspec
 
-import Data.Annotation
-import GHC.Stack
 import Control.Exception.Annotated
 import qualified Control.Exception.Safe as Safe
+import Data.Annotation
+import GHC.Stack
 
 import Data.AnnotationSpec ()
 import Data.Maybe

@@ -1,4 +1,4 @@
-{-# language ExplicitForAll #-}
+{-# LANGUAGE ExplicitForAll #-}
 
 -- | This module presents the same interface as
 -- "Control.Exception.Annotated", but uses 'MonadUnliftIO' instead of
