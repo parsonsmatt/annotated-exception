@@ -7,10 +7,48 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 
--- | An 'Annotation' is attached to a 'LocatedException'. They're
+-- | An 'Annotation' is attached to an 'Control.Exception.Annotated.AnnotatedException'. They're
 -- essentially a dynamically typed value with a convenient 'IsString'
--- instance. I'd recommend using something like @Data.Aeson.Value@ or
--- possibly something more strongly typed.
+-- instance.
+--
+-- When integrating into your own application, you will likely want to do more
+-- than just have the 'String' you get from 'show'ing the 'Annotation'. You can
+-- do this by creating a special wrapper type that carries a class constraint.
+-- This allows you to also pluck out the 'Annotation's from your library or
+-- executable independently and treat them differently from unknonwn
+-- annotations.
+--
+-- As an example, here's one that requires a 'Data.Aeson.ToJSON' constraint on the
+-- underlying value. This means that you can convert any annotated value to
+-- JSON, and then use that JSON in bug reports or logging.
+--
+-- @
+-- data JsonAnnotation where
+--   JsonAnnotation :: (ToJSON a, Typeable a) => a -> JsonAnnotation
+--
+-- instance Show JsonANnotation where
+--   show (JsonAnnotation a) = concat
+--      [ "(JsonAnnotation ("
+--      , show (toJSON a)
+--      , "))"
+--      ]
+--
+-- jsonCheckpoint :: (Typeable a, ToJSON a, 'HasCallStack', MonadCatch m) => a -> m a -> m a
+-- jsonCheckpoint val = 'withFrozenCallStack' checkpoint (JsonAnnotation val)
+-- @
+--
+-- When handling the @['Annotation']@ carried on the
+-- 'Control.Exception.Annotated.AnnotatedException', you can use
+-- 'tryAnnotations' to pick out the JSON annotations.
+--
+-- @
+-- jsonAnnotations :: [Annotation] -> ([JsonAnnotation], [Annotation])
+-- jsonAnnotations = tryAnnotations
+-- @
+--
+-- and handle them however you please.
+--
+-- @since 0.1.0.0
 module Data.Annotation
     ( module Data.Annotation
     , module Data.Proxy
@@ -164,7 +202,7 @@ callStackAnnotation = Annotation callStack
 callStackToAnnotation :: CallStack -> Annotation
 callStackToAnnotation = Annotation
 
--- | Convert the legacy 'CallStackAnnoation' into a 'CallStack'.
+-- | Convert the legacy 'CallStackAnnotation' into a 'CallStack'.
 --
 -- Deprecated in 0.2.0.0 since you can use 'CallStack' directly.
 --

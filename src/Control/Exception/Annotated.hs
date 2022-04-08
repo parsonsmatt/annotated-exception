@@ -139,13 +139,13 @@ annotate newAnnotations (AnnotatedException oldAnnotations e) =
     in
         foldr addCallStackToException (AnnotatedException other e) callStacks
 
--- | Call 'toException' on the underlying 'Exception'.
+-- | Call 'Safe.toException' on the underlying 'Exception'.
 --
 -- @since 0.1.0.0
 hide :: Exception e => AnnotatedException e -> AnnotatedException SomeException
 hide = fmap Safe.toException
 
--- | Call 'fromException' on the underlying 'Exception', attaching the
+-- | Call 'Safe.fromException' on the underlying 'Exception', attaching the
 -- annotations to the result.
 --
 -- @since 0.1.0.0
