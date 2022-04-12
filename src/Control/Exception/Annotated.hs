@@ -28,7 +28,8 @@
 module Control.Exception.Annotated
     ( -- * The Main Type
       AnnotatedException(..)
-    , new
+    , exceptionWithCallStack
+    , throw
     , throwWithCallStack
     -- * Annotating Exceptions
     , checkpoint
@@ -53,7 +54,6 @@ module Control.Exception.Annotated
     -- * Re-exports from "Control.Exception.Safe"
     , Exception(..)
     , Safe.SomeException(..)
-    , Safe.throw
     , Handler (..)
     ) where
 
@@ -62,9 +62,9 @@ import Control.Exception.Safe
 import qualified Control.Exception.Safe as Safe
 import Data.Annotation
 import Data.Maybe
+import qualified Data.Set as Set
 import Data.Typeable
 import GHC.Stack
-
 
 -- | The 'AnnotatedException' type wraps an @exception@ with
 -- a @['Annotation']@. This can provide a sort of a manual stack trace with
@@ -76,7 +76,7 @@ data AnnotatedException exception
     { annotations :: [Annotation]
     , exception   :: exception
     }
-    deriving (Eq, Show, Functor, Foldable, Traversable)
+    deriving (Show, Functor, Foldable, Traversable)
 
 instance Applicative AnnotatedException where
     pure =
@@ -112,30 +112,40 @@ instance (Exception exception) => Exception (AnnotatedException exception) where
     fromException exn
         | Just (e :: exception) <- Safe.fromException exn
         =
-            pure $ new e
+            pure $ pure e
         | otherwise
         =
             Nothing
 
--- | Attach an empty @['Annotation']@ to an exception.
+-- | Annotate the underlying exception with a 'CallStack'.
 --
--- @since 0.1.0.0
-new :: e -> AnnotatedException e
-new = pure
+-- @since 0.2.0.0
+exceptionWithCallStack :: (Exception e, HasCallStack) => e -> AnnotatedException e
+exceptionWithCallStack =
+    AnnotatedException [callStackAnnotation]
 
 -- | Append the @['Annotation']@ to the 'AnnotatedException'.
 --
+-- 'CallStack' is a special case - if a 'CallStack' is present in both the
+-- 'AnnotatedException' and the @['Annotation']@, then this will append the
+-- 'CallStack's in the new list and concatenate them all together.
+--
 -- @since 0.1.0.0
 annotate :: [Annotation] -> AnnotatedException e -> AnnotatedException e
-annotate ann (AnnotatedException anns e) = AnnotatedException (ann ++ anns) e
+annotate newAnnotations (AnnotatedException oldAnnotations e) =
+    let
+        (callStacks, other) =
+            tryAnnotations (newAnnotations <> oldAnnotations)
+    in
+        foldr addCallStackToException (AnnotatedException other e) callStacks
 
--- | Call 'toException' on the underlying 'Exception'.
+-- | Call 'Safe.toException' on the underlying 'Exception'.
 --
 -- @since 0.1.0.0
 hide :: Exception e => AnnotatedException e -> AnnotatedException SomeException
 hide = fmap Safe.toException
 
--- | Call 'fromException' on the underlying 'Exception', attaching the
+-- | Call 'Safe.fromException' on the underlying 'Exception', attaching the
 -- annotations to the result.
 --
 -- @since 0.1.0.0
@@ -160,7 +170,7 @@ check = traverse Safe.fromException
 -- > throw TestException `catch` \TestException ->
 -- >     putStrLn "ok!"
 --
--- We can throw an exception and catch it with location.
+-- We can throw an exception and catch it with annotations.
 --
 -- > throw TestException `catch` \(AnnotatedException anns TestException) ->
 -- >     putStrLn "ok!"
@@ -224,17 +234,23 @@ try action =
       `catch`
           (\exn -> pure $ Left exn)
 
--- | Attaches the 'CallStack' to the 'AnnotatedException' that is thrown.
+-- | Throws an 'Exception' and annotates it with the current 'CallStack'.
 --
--- The 'CallStack' will *not* be present as a 'CallStack' - it will be
--- a 'CallStackAnnotation'.
+-- An alias for 'throwWithCallStack'.
+--
+-- @since 0.2.0.0
+throw :: (HasCallStack, MonadThrow m, Exception e) => e -> m a
+throw = withFrozenCallStack throwWithCallStack
+
+-- | Attaches the 'CallStack' to the 'AnnotatedException' that is thrown.
 --
 -- @since 0.1.0.0
 throwWithCallStack
     :: (HasCallStack, MonadThrow m, Exception e)
     => e -> m a
 throwWithCallStack e =
-    Safe.throw (AnnotatedException [callStackAnnotation] e)
+    withFrozenCallStack $
+        Safe.throw (AnnotatedException [callStackAnnotation] e)
 
 -- | Concatenate two lists of annotations.
 --
@@ -251,7 +267,8 @@ tryFlatten exn =
             exn
 
 -- | Add a single 'Annotation' to any exceptions thrown in the following
--- action.
+-- action. The 'CallStack' present on any 'AnnotatedException' will also be
+-- updated to include this location.
 --
 -- Example:
 --
@@ -263,14 +280,14 @@ tryFlatten exn =
 -- @"Foo"@.
 --
 -- @since 0.1.0.0
-checkpoint :: MonadCatch m => Annotation -> m a -> m a
-checkpoint ann = checkpointMany [ann]
+checkpoint :: (HasCallStack, MonadCatch m) => Annotation -> m a -> m a
+checkpoint ann = withFrozenCallStack (checkpointMany [ann])
 
--- | Add the current 'CallStack' to the checkpoint. This function searches any
--- thrown exception for a pre-existing 'CallStack' and will not overwrite or
--- replace the 'CallStack' if one is already present.
+-- | Add the current 'CallStack' to the checkpoint, along with the given
+-- annotations. This function merges 'CallStack's together, attempting to
+-- preserve the call site ordering as GHC does it.
 --
--- Primarily useful when you're wrapping a third party library.
+-- As of 0.2.0.0, an alias for 'checkpointMany'.
 --
 -- @since 0.1.0.0
 checkpointCallStackWith
@@ -278,26 +295,15 @@ checkpointCallStackWith
     => [Annotation]
     -> m a
     -> m a
-checkpointCallStackWith ann action =
-    action `Safe.catch` \(exn :: SomeException) ->
-        Safe.throw
-            . annotate ann
-            . addCallStackToException callStack
-            $ case Safe.fromException exn of
-                Just (e' :: AnnotatedException SomeException) ->
-                    case annotatedExceptionCallStack e' of
-                        Nothing ->
-                            annotate ann e'
-                        Just _preexistingCallstack ->
-                            e'
-                Nothing -> do
-                    annotate ann $ new exn
+checkpointCallStackWith anns =
+    withFrozenCallStack (checkpointMany anns)
 
--- | Add the current 'CallStack' to the checkpoint. This function searches any
--- thrown exception for a pre-existing 'CallStack' and will not overwrite or
--- replace the 'CallStack' if one is already present.
---
--- Primarily useful when you're wrapping a third party library.
+{-# DEPRECATED checkpointCallStackWith "As of 0.2.0.0 this is exactly equivalent to `checkpointMany`." #-}
+
+-- | Adds only the current 'CallStack' to the checkpoint. This function searches
+-- any thrown exception for a pre-existing 'CallStack' and will merge the given
+-- pre-existing 'CallStack' with the one on this function, in an attempt to
+-- preserve the actual call history.
 --
 -- @since 0.1.0.0
 checkpointCallStack
@@ -305,41 +311,84 @@ checkpointCallStack
     => m a
     -> m a
 checkpointCallStack =
-    checkpointCallStackWith []
+    withFrozenCallStack (checkpoint (Annotation callStack))
 
 -- | Add the list of 'Annotation' to any exception thrown in the following
 -- action.
 --
 -- @since 0.1.0.0
-checkpointMany :: (MonadCatch m) => [Annotation] -> m a -> m a
-checkpointMany ann action =
+checkpointMany :: (MonadCatch m, HasCallStack) => [Annotation] -> m a -> m a
+checkpointMany anns action =
     action `Safe.catch` \(exn :: SomeException) ->
-        Safe.throw . annotate ann $ case Safe.fromException exn of
-            Just (e' :: AnnotatedException SomeException) ->
-                e'
-            Nothing -> do
-                new exn
+        Safe.throw
+            . addCallStackToException callStack
+            . annotate anns
+            $ case Safe.fromException exn of
+                Just (e' :: AnnotatedException SomeException) ->
+                    e'
+                Nothing -> do
+                    pure exn
 
 -- | Retrieves the 'CallStack' from an 'AnnotatedException' if one is present.
+--
+-- The library maintains an internal check that a single 'CallStack' is present
+-- in the list, so this only returns the first one found. If you have added
+-- a 'CallStack' directly to the @['Annotation']@, then this will likely break.
 --
 -- @since 0.1.0.0
 annotatedExceptionCallStack :: AnnotatedException exception -> Maybe CallStack
 annotatedExceptionCallStack exn =
-    let (stacks, _rest) = callStackInAnnotations (annotations exn)
+    let (stacks, _rest) = tryAnnotations (annotations exn)
     in listToMaybe stacks
 
 -- | Adds a 'CallStack' to the given 'AnnotatedException'. This function will
 -- search through the existing annotations, and it will not add a second
--- 'CallStack' to the list.
+-- 'CallStack' to the list. Instead, it will append the contents of the given
+-- 'CallStack' to the existing one.
+--
+-- This mirrors the behavior of the way 'HasCallStack' actually works.
 --
 -- @since 0.1.0.0
 addCallStackToException
     :: CallStack
     -> AnnotatedException exception
     -> AnnotatedException exception
-addCallStackToException cs exn =
-    case annotatedExceptionCallStack exn of
-        Nothing ->
-            annotate [callStackToAnnotation cs] exn
-        Just _ ->
-            exn
+addCallStackToException cs (AnnotatedException annotations' e) =
+    AnnotatedException anns' e
+  where
+    anns' = go annotations'
+    -- not a huge fan of the direct recursion, but it seems easier than trying
+    -- to finagle a `foldr` or something
+    go [] =
+        [Annotation cs]
+    go (ann : anns) =
+        case castAnnotation ann of
+            Just preexistingCallStack ->
+                mergeCallStack preexistingCallStack cs : anns
+            Nothing ->
+                ann : go anns
+
+    -- we want to merge callstack but not duplicate entries
+    mergeCallStack pre new =
+        Annotation
+            $ fromCallSiteList
+            $ fmap (fmap fromSrcLocOrd)
+            $ ordNub
+            $ fmap (fmap toSrcLocOrd)
+            $ getCallStack pre <> getCallStack new
+
+toSrcLocOrd (SrcLoc a b c d e f g) =
+    (a, b, c, d, e, f, g)
+fromSrcLocOrd (a, b, c, d, e, f, g) =
+    SrcLoc a b c d e f g
+
+-- | Remove duplicates but keep elements in order.
+--   O(n * log n)
+-- Vendored from GHC
+ordNub :: Ord a => [a] -> [a]
+ordNub = go Set.empty
+  where
+    go _ [] = []
+    go s (x:xs)
+      | Set.member x s = go s xs
+      | otherwise = x : go (Set.insert x s) xs

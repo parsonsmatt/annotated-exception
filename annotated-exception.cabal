@@ -5,7 +5,7 @@ cabal-version: 1.12
 -- see: https://github.com/sol/hpack
 
 name:           annotated-exception
-version:        0.1.2.1
+version:        0.2.0.0
 synopsis:       Exceptions, with checkpoints and context.
 description:    Please see the README on Github at <https://github.com/parsonsmatt/annotated-exception#readme>
 category:       Control
