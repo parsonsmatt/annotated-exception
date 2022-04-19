@@ -2,6 +2,11 @@
 
 ## Unreleased changes
 
+## 0.2.0.1
+
+- [#13](https://github.com/parsonsmatt/annotated-exception/pull/13)
+    - Fixed a bug in `UnliftIO.catches` where it would infinitely recurse.
+
 ## 0.2.0.0
 
 - [#12](https://github.com/parsonsmatt/annotated-exception/pull/12)
