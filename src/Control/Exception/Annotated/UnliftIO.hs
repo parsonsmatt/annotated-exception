@@ -146,4 +146,4 @@ catches
 catches action handlers =
     withRunInIO $ \runInIO -> do
         let f (Handler k) = Handler (\e -> runInIO (k e))
-        liftIO $ catches (runInIO action) (map f handlers)
+        liftIO $ Catch.catches (runInIO action) (map f handlers)
