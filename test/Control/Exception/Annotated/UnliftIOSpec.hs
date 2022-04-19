@@ -15,7 +15,7 @@ asIO :: IO a -> IO a
 asIO = id
 
 spec :: Spec
-spec = focus $ do
+spec = do
     describe "catch" $ do
         describe "the right exception" $ do
             it "works" $ asIO $ do
