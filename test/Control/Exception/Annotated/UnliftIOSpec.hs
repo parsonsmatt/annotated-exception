@@ -1,3 +1,5 @@
+{-# language RecordWildCards, StrictData, RankNTypes #-}
+
 module Control.Exception.Annotated.UnliftIOSpec where
 
 import Test.Hspec
