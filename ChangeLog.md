@@ -1,6 +1,10 @@
-# Changelog for located-exception
+# Changelog for `annotated-exception`
 
-## Unreleased changes
+## 0.2.0.2
+
+- [#]()
+    - Define `Control.Exception.Annotated.UnliftIO.checkpointCallStack` without
+      re-exporting the `MonadCatch` variant. Sigh.
 
 ## 0.2.0.1
 

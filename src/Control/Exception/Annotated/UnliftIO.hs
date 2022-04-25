@@ -39,16 +39,17 @@ module Control.Exception.Annotated.UnliftIO
     , MonadUnliftIO(..)
     ) where
 
-import Control.Exception.Annotated hiding
-       ( catch
-       , catches
-       , checkpoint
-       , checkpointCallStackWith
-       , checkpointMany
-       , throw
-       , throwWithCallStack
-       , try
-       , tryAnnotated
+import Control.Exception.Annotated
+       ( AnnotatedException(..)
+       , Annotation(..)
+       , CallStackAnnotation(..)
+       , Exception(..)
+       , Handler(..)
+       , addCallStackToException
+       , annotatedExceptionCallStack
+       , check
+       , exceptionWithCallStack
+       , hide
        )
 import qualified Control.Exception.Annotated as Catch
 import qualified Control.Exception.Safe as Safe
@@ -76,6 +77,18 @@ throw = liftIO . withFrozenCallStack Catch.throw
 checkpoint :: forall m a. (MonadUnliftIO m, HasCallStack) => Annotation -> m a -> m a
 checkpoint ann action = withRunInIO $ \runInIO ->
     liftIO $ withFrozenCallStack (Catch.checkpoint ann) (runInIO action)
+
+-- | Like 'Catch.checkpointCallStack', but uses 'MonadUnliftIO' instead of
+-- 'Control.Monad.Catch.MonadCatch'.
+--
+-- @since 0.2.0.2
+checkpointCallStack
+    :: forall m a. (MonadUnliftIO m, HasCallStack)
+    => m a
+    -> m a
+checkpointCallStack action =
+    withRunInIO $ \runInIO ->
+        withFrozenCallStack Catch.checkpointCallStack (runInIO action)
 
 -- | Like 'Catch.checkpointMany', but uses 'MonadUnliftIO' instead of
 -- 'Control.Monad.Catch.MonadCatch'.
