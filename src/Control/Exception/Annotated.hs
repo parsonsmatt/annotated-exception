@@ -318,7 +318,7 @@ checkpointCallStack =
 --
 -- @since 0.1.0.0
 checkpointMany :: (MonadCatch m, HasCallStack) => [Annotation] -> m a -> m a
-checkpointMany anns action =
+checkpointMany anns action = withFrozenCallStack $
     action `Safe.catch` \(exn :: SomeException) ->
         Safe.throw
             . addCallStackToException callStack
