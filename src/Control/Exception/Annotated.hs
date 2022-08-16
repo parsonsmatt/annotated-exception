@@ -183,23 +183,23 @@ check = traverse Safe.fromException
 -- >     putStrLn "ok!"
 --
 -- @since 0.1.0.0
-catch :: (Exception e, MonadCatch m) => m a -> (e -> m a) -> m a
+catch :: (HasCallStack, Exception e, MonadCatch m) => m a -> (e -> m a) -> m a
 catch action handler =
-    catches action [Handler handler]
+    withFrozenCallStack catches action [Handler handler]
 
 -- | Like 'Safe.catches', but this function enhance the provided 'Handler's
 -- to "see through" any 'AnnotatedException's.
 --
 -- @since 0.1.2.0
-catches :: (MonadCatch m) => m a -> [Handler m a] -> m a
+catches :: (MonadCatch m, HasCallStack) => m a -> [Handler m a] -> m a
 catches action handlers =
-    Safe.catches action (mkAnnotatedHandlers handlers)
+    Safe.catches action (withFrozenCallStack mkAnnotatedHandlers handlers)
 
 -- | Extends each 'Handler' in the list with a variant that sees through
 -- the 'AnnotatedException' and re-annotates any rethrown exceptions.
 --
 -- @since 0.1.1.0
-mkAnnotatedHandlers :: MonadCatch m => [Handler m a] -> [Handler m a]
+mkAnnotatedHandlers :: (HasCallStack, MonadCatch m) => [Handler m a] -> [Handler m a]
 mkAnnotatedHandlers xs =
     xs >>= \(Handler hndlr) ->
         [ Handler hndlr

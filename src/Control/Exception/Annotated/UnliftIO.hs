@@ -118,13 +118,13 @@ checkpointCallStackWith anns action =
 --
 -- @since 0.1.2.0
 catch
-    :: forall e m a. (MonadUnliftIO m, Exception e)
+    :: forall e m a. (MonadUnliftIO m, Exception e, HasCallStack)
     => m a
     -> (e -> m a)
     -> m a
 catch action handler =
     withRunInIO $ \runInIO ->
-        liftIO $ Catch.catch (runInIO action) (\e -> runInIO $ handler e)
+        liftIO $ withFrozenCallStack Catch.catch (runInIO action) (\e -> runInIO $ handler e)
 
 -- | Like 'Catch.tryAnnotated' but uses 'MonadUnliftIO' instead of 'Control.Monad.Catch.MonadCatch'.
 --
@@ -152,11 +152,11 @@ try action =
 --
 -- @since 0.1.2.0
 catches
-    :: forall m a. MonadUnliftIO m
+    :: forall m a. (MonadUnliftIO m, HasCallStack)
     => m a
     -> [Handler m a]
     -> m a
 catches action handlers =
     withRunInIO $ \runInIO -> do
         let f (Handler k) = Handler (\e -> runInIO (k e))
-        liftIO $ Catch.catches (runInIO action) (map f handlers)
+        liftIO $ withFrozenCallStack Catch.catches (runInIO action) (map f handlers)
