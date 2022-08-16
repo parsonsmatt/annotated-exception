@@ -122,22 +122,40 @@ spec = do
             action
                 `shouldThrow`
                     (userError "uh oh" ==)
-        it "includes a callstack location" $ do
-            let
-                action =
-                    throw TestException
-                        `catch`
-                            \TestException ->
-                                throw TestException
-            action
-                `Safe.catch`
-                        \(e :: AnnotatedException TestException) -> do
-                            annotations e
-                                `callStackFunctionNamesShouldBe`
-                                    [ "throw"
-                                    , "throw"
-                                    , "catch"
-                                    ]
+
+        describe "includes a callstack location" $ do
+            it "with an originally annotated exception" $ do
+                let
+                    action =
+                        throw TestException
+                            `catch`
+                                \TestException ->
+                                    throw TestException
+                action
+                    `Safe.catch`
+                            \(e :: AnnotatedException TestException) -> do
+                                annotations e
+                                    `callStackFunctionNamesShouldBe`
+                                        [ "throw"
+                                        , "throw"
+                                        , "catch"
+                                        ]
+            it "with a non-annotated original exception" $ do
+                let
+                    action =
+                        Safe.throw TestException
+                            `catch`
+                                \TestException ->
+                                    throw TestException
+                action
+                    `Safe.catch`
+                            \(e :: AnnotatedException TestException) -> do
+                                annotations e
+                                    `callStackFunctionNamesShouldBe`
+                                        [ "throw"
+                                        , "catch"
+                                        ]
+
     describe "catches" $ do
         it "has a callstack entry" $ do
             let
