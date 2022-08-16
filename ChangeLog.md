@@ -1,5 +1,11 @@
 # Changelog for `annotated-exception`
 
+## 0.2.0.4
+
+- [#18](https://github.com/parsonsmatt/annotated-exception/pull/18)
+    - Add `checkpointCallStack` even when `catch` doesn't catch an
+      `AnnotatedException`
+
 ## 0.2.0.3
 
 - [#17](https://github.com/parsonsmatt/annotated-exception/pull/17)
