@@ -202,7 +202,8 @@ catches action handlers =
 mkAnnotatedHandlers :: (HasCallStack, MonadCatch m) => [Handler m a] -> [Handler m a]
 mkAnnotatedHandlers xs =
     xs >>= \(Handler hndlr) ->
-        [ Handler hndlr
+        [ Handler $ \e ->
+            checkpointCallStack $ hndlr e
         , Handler $ \(AnnotatedException anns e) ->
             checkpointMany anns $ hndlr e
         ]
