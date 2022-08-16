@@ -105,6 +105,40 @@ spec = do
             action
                 `shouldThrow`
                     (userError "uh oh" ==)
+        it "includes a callstack location" $ do
+            let
+                action =
+                    throw TestException
+                        `catch`
+                            \TestException ->
+                                throw TestException
+            action
+                `Safe.catch`
+                        \(e :: AnnotatedException TestException) -> do
+                            annotations e
+                                `callStackFunctionNamesShouldBe`
+                                    [ "throw"
+                                    , "throw"
+                                    , "catch"
+                                    ]
+    describe "catches" $ do
+        it "has a callstack entry" $ do
+            let
+                action =
+                    throw TestException
+                        `catches`
+                            [ Handler $ \TestException ->
+                                throw TestException
+                            ]
+            action
+                `Safe.catch`
+                        \(e :: AnnotatedException TestException) -> do
+                            annotations e
+                                `callStackFunctionNamesShouldBe`
+                                    [ "throw"
+                                    , "throw"
+                                    , "catches"
+                                    ]
 
     describe "tryAnnotated" $ do
         let subject :: (Exception e, Exception e') => e -> IO (AnnotatedException e')
@@ -153,7 +187,7 @@ spec = do
                     `Safe.catch` \(e :: AnnotatedException TestException) -> do
                         annotations e
                             `callStackFunctionNamesShouldBe`
-                                ["throwWithCallStack"
+                                [ "throwWithCallStack"
                                 , "checkpointCallStack"
                                 ]
 
