@@ -2,7 +2,7 @@
 
 ## 0.2.0.3
 
-- []()
+- [#17](https://github.com/parsonsmatt/annotated-exception/pull/17)
     - Add `HasCallStack` to `catch` and `catches`
 
 ## 0.2.0.2
