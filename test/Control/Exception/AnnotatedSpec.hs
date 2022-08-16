@@ -15,7 +15,7 @@ import Control.Exception.Annotated
 import qualified Control.Exception.Safe as Safe
 import Data.Annotation
 import GHC.Stack
-
+import Data.Typeable
 import Data.AnnotationSpec ()
 import Data.Maybe
 
@@ -28,7 +28,8 @@ data TestException = TestException
     deriving (Eq, Show, Exception)
 
 instance Eq SomeException where
-    e0 == e1 = show e0 == show e1
+    SomeException (e0 :: e0) == SomeException (e1 :: e1) =
+        typeOf e0 == typeOf e1 && show e0 == show e1
 
 pass :: Expectation
 pass = pure ()
@@ -38,6 +39,22 @@ emptyAnnotation = pure
 
 spec :: Spec
 spec = do
+    describe "toException" $ do
+        it "wraps inner in SomeException" $ do
+            toException (AnnotatedException [] TestException)
+                `shouldBe` do
+                    SomeException
+                        (AnnotatedException [] (SomeException TestException))
+        it "flattens annotations" $ do
+            let
+                exn =
+                    AnnotatedException ["hello"] $
+                        AnnotatedException ["goodbye"] TestException
+            toException exn
+                `shouldBe` do
+                    SomeException $
+                        AnnotatedException ["hello", "goodbye"] (SomeException TestException)
+
     describe "AnnotatedException can fromException a" $ do
         it "different type" $ do
             fromException (toException TestException)
