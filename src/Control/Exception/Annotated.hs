@@ -322,7 +322,7 @@ checkpointCallStack =
 checkpointMany :: (MonadCatch m, HasCallStack) => [Annotation] -> m a -> m a
 checkpointMany anns action =
     action `Catch.catch` \(exn :: SomeException) ->
-        Safe.throw
+        Catch.throwM
             . addCallStackToException callStack
             . annotate anns
             $ case Safe.fromException exn of
