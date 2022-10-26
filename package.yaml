@@ -25,6 +25,8 @@ dependencies:
 - containers
 - text
 - unliftio-core
+  # - unliftio >= 0.2.17
+- exceptions
 
 library:
   source-dirs: src
@@ -39,8 +41,11 @@ tests:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
+    - -O2
     dependencies:
     - annotated-exception
     - hspec
+    - unliftio
+    - async
     build-tools:
     - hspec-discover
