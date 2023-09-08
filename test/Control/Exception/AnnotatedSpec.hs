@@ -364,6 +364,32 @@ spec = do
                 , "checkpoint"
                 ]
 
+        it "handles CallStack nicely when throwing" $ do
+            Left (AnnotatedException anns TestException) <- try $
+                throw TestException
+
+            shouldHaveAtMostOneCallStack anns
+
+        it "handles CallStack nicely when throwing manually-created AnnotatedException" $ do
+            Left (AnnotatedException anns TestException) <- try $
+                throw (AnnotatedException [Annotation callStack] TestException)
+
+            shouldHaveAtMostOneCallStack anns
+
+        it "handles CallStack nicely when rethrowing" $ do
+            Left (AnnotatedException anns TestException) <- try $
+                throw TestException
+                    `Safe.catch` (\e -> throw (e :: AnnotatedException TestException))
+
+            shouldHaveAtMostOneCallStack anns
+
+        it "handles CallStack nicely when rethrowing manually-created AnnotatedException" $ do
+            Left (AnnotatedException anns TestException) <- try $
+                throw (AnnotatedException [Annotation callStack] TestException)
+                    `Safe.catch` (\e -> throw (e :: AnnotatedException TestException))
+
+            shouldHaveAtMostOneCallStack anns
+
     describe "HasCallStack behavior" $ do
         -- This section of the test suite exists to verify that some behavior
         -- acts how I expect it to. And/or learn how it behaves. Lol.
@@ -460,6 +486,12 @@ shouldBeWithoutCallStackInAnnotations (AnnotatedException exp e0) e1 = do
   where
     filterCallStack anns =
         snd $ tryAnnotations @CallStack anns
+
+shouldHaveAtMostOneCallStack :: [Annotation] -> IO ()
+shouldHaveAtMostOneCallStack anns =
+    if (length (fst (tryAnnotations anns) :: [CallStack]) > 1)
+    then expectationFailure $ "has too many callstacks: " ++ show anns
+    else pure ()
 
 callStackFromFunctionName :: String -> CallStack
 callStackFromFunctionName str =
