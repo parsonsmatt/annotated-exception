@@ -57,6 +57,7 @@ module Control.Exception.Annotated
     , Handler (..)
     ) where
 
+import qualified Control.Monad.Catch as Catch
 import Control.Exception.Safe
        (Exception, Handler(..), MonadCatch, MonadThrow, SomeException(..))
 import qualified Control.Exception.Safe as Safe
@@ -320,8 +321,8 @@ checkpointCallStack =
 -- @since 0.1.0.0
 checkpointMany :: (MonadCatch m, HasCallStack) => [Annotation] -> m a -> m a
 checkpointMany anns action =
-    action `Safe.catch` \(exn :: SomeException) ->
-        Safe.throw
+    action `Catch.catch` \(exn :: SomeException) ->
+        Catch.throwM
             . addCallStackToException callStack
             . annotate anns
             $ case Safe.fromException exn of

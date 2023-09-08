@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -11,6 +12,14 @@ module Control.Exception.AnnotatedSpec where
 
 import Test.Hspec
 
+import qualified UnliftIO.Exception as UnliftIO
+import Control.Concurrent.Async (ExceptionInLinkedThread(..), Async, asyncThreadId)
+import qualified Control.Exception
+import Control.Exception (SomeAsyncException(..))
+import Control.Concurrent (MVar, newEmptyMVar, putMVar, takeMVar)
+import qualified Control.Concurrent
+import qualified UnliftIO.Concurrent
+import UnliftIO.Concurrent (threadDelay)
 import Control.Exception.Annotated
 import qualified Control.Exception.Safe as Safe
 import Data.Annotation
@@ -18,6 +27,9 @@ import GHC.Stack
 import Data.Typeable
 import Data.AnnotationSpec ()
 import Data.Maybe
+import qualified UnliftIO.Async as UnliftIO
+import qualified Control.Concurrent.Async as Async
+import Control.Monad
 
 instance Eq CallStack where
     a == b = show a == show b
@@ -29,6 +41,22 @@ data TestException = TestException
 
 instance Eq SomeException where
     SomeException (e0 :: e0) == SomeException (e1 :: e1) =
+        typeOf e0 == typeOf e1 && show e0 == show e1
+
+instance Eq SomeAsyncException where
+    SomeAsyncException (e0 :: e0) == SomeAsyncException (e1 :: e1) =
+        typeOf e0 == typeOf e1 && show e0 == show e1
+
+instance Eq ExceptionInLinkedThread where
+    ExceptionInLinkedThread a0 e0 == ExceptionInLinkedThread a1 e1 =
+        e0 == e1 && void a0 == void a1
+
+instance Eq Safe.AsyncExceptionWrapper where
+    Safe.AsyncExceptionWrapper e0 == Safe.AsyncExceptionWrapper e1 =
+        typeOf e0 == typeOf e1 && show e0 == show e1
+
+instance Eq UnliftIO.AsyncExceptionWrapper where
+    UnliftIO.AsyncExceptionWrapper e0 == UnliftIO.AsyncExceptionWrapper e1 =
         typeOf e0 == typeOf e1 && show e0 == show e1
 
 pass :: Expectation
@@ -469,6 +497,144 @@ spec = do
                     `callStackFunctionNamesShouldBe`
                         map fst (getCallStack expectedCallStack)
 
+    describe "Async Exceptions" $ do
+        describe "Async" $ do
+            let
+                withSideThread
+                    :: (IO a -> (Async () -> IO ()) -> IO ())
+                    -> (Async () -> IO ()) -> IO ()
+                withSideThread myWithAsync k =  do
+                    let
+                        sideThread = do
+                            checkpoint "hello" $ do
+                                throwWithCallStack TestException
+                    myWithAsync sideThread k
+
+                waitTest myWait a =
+                    myWait a
+                        `assertOnCaughtException` \err -> do
+                            err
+                                `shouldBeWithoutCallStackInAnnotations`
+                                    AnnotatedException ["hello"] TestException
+
+                linkTest myLink a = do
+                    x <- newEmptyMVar
+                    myLink a
+                    checkpoint "oh dang" (takeMVar x :: IO ())
+                        `assertOnCaughtException` \outer@(AnnotatedException anns err) -> do
+                            filterCallStack anns `shouldBe` ["oh dang"]
+                            case err of
+                                ExceptionInLinkedThread a' inner -> do
+                                    asyncThreadId a' `shouldBe` asyncThreadId a
+                                    let Just annE = fromException inner
+                                    annE
+                                        `shouldBeWithoutCallStackInAnnotations`
+                                            AnnotatedException
+                                            ["hello"]
+                                            TestException
+
+            let cases =
+                    [ ("Control.Concurrent.Async", Async.withAsync, Async.wait, Async.link)
+                    , ("UnliftIO.Async", UnliftIO.withAsync, UnliftIO.wait, UnliftIO.link)
+                    ]
+
+            forM_ cases $ \(moduleName, myWithAsync, myWait, myLink) -> do
+                describe moduleName $ do
+                    around (withSideThread myWithAsync) $ do
+                        it "wait throws a sync exception" $
+                            waitTest myWait
+                        it "link throws async exception" $
+                            linkTest myLink
+
+            describe "cancel" $ do
+                it "shows up in the thing" $ do
+                    x <- newEmptyMVar :: IO (MVar SomeException)
+                    w <- newEmptyMVar :: IO (MVar ())
+                    let
+                        sideThreadAction = do
+                            (checkpoint "wow" $ do
+                                putMVar w ()
+                                takeMVar x)
+                            `catch` \a -> do
+                                putMVar x a
+                                Control.Exception.throwIO a
+                    Async.withAsync sideThreadAction $ \a -> do
+                        takeMVar w
+                        Async.cancel a
+                        se <- takeMVar x
+                        Just annE <- pure $ fromException se
+                        annE `shouldBeWithoutCallStackInAnnotations`
+                            AnnotatedException ["wow"] Async.AsyncCancelled
+                        Async.wait a
+                            `assertOnCaughtException` \annE ->
+                                annE `shouldBeWithoutCallStackInAnnotations`
+                                    AnnotatedException ["wow"] Async.AsyncCancelled
+
+        describe "forkIO" $ do
+            let
+                setupSideThread myThrowTo = do
+                    sideThreadWaitVar <- newEmptyMVar :: IO (MVar ())
+                    sideThreadInstalledVar <- newEmptyMVar
+                    sideThreadResultVar <- newEmptyMVar
+                    let
+                        sideThread =
+                            checkpoint "hello" $ do
+                                putMVar sideThreadInstalledVar ()
+                                takeMVar sideThreadWaitVar
+                    threadId <-
+                        Control.Concurrent.forkFinally sideThread $ putMVar sideThreadResultVar
+                    takeMVar sideThreadInstalledVar
+                    myThrowTo threadId TestException
+                    Left err@(SomeException someErr) <- takeMVar sideThreadResultVar
+                    pure err
+
+            describe "Control.Concurrent.throwTo" $ do
+                before (setupSideThread Control.Concurrent.throwTo) $ do
+                    it "has annotatedexception on the 'outer' layer" $ \(SomeException err) -> do
+                        Just annE <- pure $ cast err
+                        annE `shouldBeWithoutCallStackInAnnotations` do
+                            AnnotatedException ["hello"] (SomeException TestException)
+                    it "can transparently be fromException'ed" $ \someErr -> do
+                        Just annE <- pure $ fromException someErr
+                        annE `shouldBeWithoutCallStackInAnnotations` do
+                            AnnotatedException ["hello"] TestException
+
+            describe "UnliftIO.Concurrent.throwTo" $ do
+                before (setupSideThread UnliftIO.Concurrent.throwTo) $ do
+                    it "fromException only works on SomeAsyncException" $ \someErr -> do
+                        Just annE <- pure $ fromException someErr
+                        annE `shouldBeWithoutCallStackInAnnotations` do
+                            AnnotatedException ["hello"] ((UnliftIO.AsyncExceptionWrapper TestException))
+                    it "cast uses many wrappers" $ \(SomeException err) -> do
+                        -- print $ typeOf err
+                        Just (AnnotatedException anns (asyncWrapper :: SomeException)) <- pure $ cast err
+                        filterCallStack anns `shouldBe` ["hello"]
+                        SomeException err <- pure asyncWrapper
+                        -- print $ typeOf err
+                        Just (Safe.SomeAsyncException err) <- pure $ cast err
+                        -- print $ typeOf err
+                        Just (UnliftIO.AsyncExceptionWrapper err) <- pure $ cast err
+                        -- print $ typeOf err
+                        cast err `shouldBe` Just TestException
+
+            describe "Control.Exception.Safe.throwTo" $ do
+                before (setupSideThread Safe.throwTo) $ do
+                    it "inner exception is wrapped" $ \someErr -> do
+                        Just annE <- pure $ fromException someErr
+                        annE `shouldBeWithoutCallStackInAnnotations` do
+                            AnnotatedException ["hello"] (SomeAsyncException (Safe.AsyncExceptionWrapper TestException))
+                    it "SomeAsyncException is transparent, AsyncExceptionWrapper is not" $ \someErr -> do
+                        Just annE <- pure $ fromException someErr
+                        annE `shouldBeWithoutCallStackInAnnotations` do
+                            AnnotatedException ["hello"] (Safe.AsyncExceptionWrapper TestException)
+
+assertOnCaughtException :: (Show a, Exception e) => IO a -> (e -> IO ()) -> IO ()
+assertOnCaughtException action handler = do
+    eres <- Control.Exception.try action
+    case eres of
+        Left err -> handler err
+        Right a -> expectationFailure $ "Expected an error, got: " <> show a
+
 callStackFunctionNamesShouldBe :: HasCallStack => [Annotation] -> [String] -> IO ()
 callStackFunctionNamesShouldBe anns names = do
     let ([callStack], []) = tryAnnotations anns
@@ -483,9 +649,9 @@ shouldBeWithoutCallStackInAnnotations
     -> IO ()
 shouldBeWithoutCallStackInAnnotations (AnnotatedException exp e0) e1 = do
     AnnotatedException (filterCallStack exp) e0 `shouldBe` e1
-  where
-    filterCallStack anns =
-        snd $ tryAnnotations @CallStack anns
+
+filterCallStack anns =
+    snd $ tryAnnotations @CallStack anns
 
 shouldHaveAtMostOneCallStack :: [Annotation] -> IO ()
 shouldHaveAtMostOneCallStack anns =
