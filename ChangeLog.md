@@ -2,7 +2,7 @@
 
 ## 0.2.0.5
 
-- []()
+- [#27](https://github.com/parsonsmatt/annotated-exception/pull/27)
     - Ensure that `flatten` combines `CallStack`s even when the callstack is
       attached manually.
 
