@@ -57,6 +57,7 @@ module Control.Exception.Annotated
     , Handler (..)
     ) where
 
+import Control.Applicative ((<|>))
 import Control.Exception.Safe
        (Exception, Handler(..), MonadCatch, MonadThrow, SomeException(..))
 import qualified Control.Exception.Safe as Safe
@@ -65,7 +66,6 @@ import Data.Maybe
 import qualified Data.Set as Set
 import Data.Typeable
 import GHC.Stack
-import Control.Applicative ((<|>))
 
 -- | The 'AnnotatedException' type wraps an @exception@ with
 -- a @['Annotation']@. This can provide a sort of a manual stack trace with
