@@ -1,5 +1,11 @@
 # Changelog for `annotated-exception`
 
+## 0.2.0.5
+
+- []()
+    - Ensure that `flatten` combines `CallStack`s even when the callstack is
+      attached manually.
+
 ## 0.2.0.4
 
 - [#18](https://github.com/parsonsmatt/annotated-exception/pull/18)

@@ -65,6 +65,7 @@ import Data.Maybe
 import qualified Data.Set as Set
 import Data.Typeable
 import GHC.Stack
+import Control.Applicative ((<|>))
 
 -- | The 'AnnotatedException' type wraps an @exception@ with
 -- a @['Annotation']@. This can provide a sort of a manual stack trace with
@@ -257,7 +258,22 @@ throwWithCallStack e =
 --
 -- @since 0.1.0.0
 flatten :: AnnotatedException (AnnotatedException e)  -> AnnotatedException e
-flatten (AnnotatedException a (AnnotatedException b c)) = AnnotatedException (a ++ b) c
+flatten (AnnotatedException a (AnnotatedException b c)) = AnnotatedException (go Nothing a b) c
+  where
+    go :: Maybe CallStack -> [Annotation] -> [Annotation] -> [Annotation]
+    go mcallstack [] bs =
+        case mcallstack of
+            Just cs ->
+                addCallStackToAnnotations cs bs
+            Nothing ->
+                bs
+    go mcallstack (a : as) bs =
+        case castAnnotation a of
+            Just cs ->
+                let newAcc = fmap (mergeCallStack cs) mcallstack <|> Just cs
+                 in go newAcc as bs
+            Nothing ->
+                a : go mcallstack as bs
 
 tryFlatten :: SomeException -> SomeException
 tryFlatten exn =
@@ -354,10 +370,12 @@ addCallStackToException
     :: CallStack
     -> AnnotatedException exception
     -> AnnotatedException exception
-addCallStackToException cs (AnnotatedException annotations' e) =
-    AnnotatedException anns' e
+addCallStackToException cs (AnnotatedException anns e) =
+    AnnotatedException (addCallStackToAnnotations cs anns) e
+
+addCallStackToAnnotations :: CallStack -> [Annotation] -> [Annotation]
+addCallStackToAnnotations cs anns = go anns
   where
-    anns' = go annotations'
     -- not a huge fan of the direct recursion, but it seems easier than trying
     -- to finagle a `foldr` or something
     go [] =
@@ -365,23 +383,23 @@ addCallStackToException cs (AnnotatedException annotations' e) =
     go (ann : anns) =
         case castAnnotation ann of
             Just preexistingCallStack ->
-                mergeCallStack preexistingCallStack cs : anns
+                Annotation (mergeCallStack preexistingCallStack cs) : anns
             Nothing ->
                 ann : go anns
 
-    -- we want to merge callstack but not duplicate entries
-    mergeCallStack pre new =
-        Annotation
-            $ fromCallSiteList
-            $ fmap (fmap fromSrcLocOrd)
-            $ ordNub
-            $ fmap (fmap toSrcLocOrd)
-            $ getCallStack pre <> getCallStack new
-
-toSrcLocOrd (SrcLoc a b c d e f g) =
-    (a, b, c, d, e, f, g)
-fromSrcLocOrd (a, b, c, d, e, f, g) =
-    SrcLoc a b c d e f g
+-- we want to merge callstack but not duplicate entries
+mergeCallStack :: CallStack -> CallStack -> CallStack
+mergeCallStack pre new =
+        fromCallSiteList
+        $ fmap (fmap fromSrcLocOrd)
+        $ ordNub
+        $ fmap (fmap toSrcLocOrd)
+        $ getCallStack pre <> getCallStack new
+  where
+    toSrcLocOrd (SrcLoc a b c d e f g) =
+        (a, b, c, d, e, f, g)
+    fromSrcLocOrd (a, b, c, d, e, f, g) =
+        SrcLoc a b c d e f g
 
 -- | Remove duplicates but keep elements in order.
 --   O(n * log n)
