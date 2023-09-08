@@ -1,11 +1,11 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.34.4.
+-- This file has been generated from package.yaml by hpack version 0.35.2.
 --
 -- see: https://github.com/sol/hpack
 
 name:           annotated-exception
-version:        0.2.0.4
+version:        0.2.0.5
 synopsis:       Exceptions, with checkpoints and context.
 description:    Please see the README on Github at <https://github.com/parsonsmatt/annotated-exception#readme>
 category:       Control

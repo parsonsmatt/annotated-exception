@@ -487,7 +487,7 @@ shouldBeWithoutCallStackInAnnotations (AnnotatedException exp e0) e1 = do
     filterCallStack anns =
         snd $ tryAnnotations @CallStack anns
 
-shouldHaveAtMostOneCallStack :: [Annotation] -> IO ()
+shouldHaveAtMostOneCallStack :: HasCallStack => [Annotation] -> IO ()
 shouldHaveAtMostOneCallStack anns =
     if (length (fst (tryAnnotations anns) :: [CallStack]) > 1)
     then expectationFailure $ "has too many callstacks: " ++ show anns
