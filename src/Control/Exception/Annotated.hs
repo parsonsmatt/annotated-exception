@@ -118,6 +118,31 @@ instance (Exception exception) => Exception (AnnotatedException exception) where
         =
             Nothing
 
+    displayException annE@(AnnotatedException annotations exception) =
+        unlines
+            [ "! AnnotatedException !"
+            , "Underlying exception type: " <> show (typeOf exception)
+            , "displayException:"
+            , "\t" <> Safe.displayException exception
+            ]
+        <> annotationsMessage
+        <> callStackMessage
+      where
+        (callStacks, otherAnnotations) = tryAnnotations @CallStack annotations
+        callStackMessage =
+            case listToMaybe callStacks of
+                Nothing ->
+                    "(no callstack available)"
+                Just cs ->
+                    prettyCallStack cs
+        annotationsMessage =
+            case otherAnnotations of
+                [] ->
+                    "\n"
+                anns ->
+                    "Annotations:\n"
+                    <> unlines (map (\ann -> "\t * " <> show ann) anns)
+
 -- | Annotate the underlying exception with a 'CallStack'.
 --
 -- @since 0.2.0.0
