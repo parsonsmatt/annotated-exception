@@ -7,6 +7,7 @@
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
@@ -118,7 +119,7 @@ instance (Exception exception) => Exception (AnnotatedException exception) where
         =
             Nothing
 
-    displayException annE@(AnnotatedException annotations exception) =
+    displayException (AnnotatedException {..}) =
         unlines
             [ "! AnnotatedException !"
             , "Underlying exception type: " <> show (typeOf exception)
@@ -292,13 +293,13 @@ flatten (AnnotatedException a (AnnotatedException b c)) = AnnotatedException (go
                 addCallStackToAnnotations cs bs
             Nothing ->
                 bs
-    go mcallstack (a : as) bs =
-        case castAnnotation a of
+    go mcallstack (ann : anns) bs =
+        case castAnnotation ann of
             Just cs ->
                 let newAcc = fmap (mergeCallStack cs) mcallstack <|> Just cs
-                 in go newAcc as bs
+                 in go newAcc anns bs
             Nothing ->
-                a : go mcallstack as bs
+                ann : go mcallstack anns bs
 
 tryFlatten :: SomeException -> SomeException
 tryFlatten exn =
@@ -399,7 +400,7 @@ addCallStackToException cs (AnnotatedException anns e) =
     AnnotatedException (addCallStackToAnnotations cs anns) e
 
 addCallStackToAnnotations :: CallStack -> [Annotation] -> [Annotation]
-addCallStackToAnnotations cs anns = go anns
+addCallStackToAnnotations cs = go
   where
     -- not a huge fan of the direct recursion, but it seems easier than trying
     -- to finagle a `foldr` or something
