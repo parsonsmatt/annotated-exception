@@ -78,7 +78,10 @@ data AnnotatedException exception
     { annotations :: [Annotation]
     , exception   :: exception
     }
-    deriving (Show, Functor, Foldable, Traversable)
+    deriving (Functor, Foldable, Traversable)
+
+instance (Exception exception) => Show (AnnotatedException exception) where
+    show = Safe.displayException
 
 instance Applicative AnnotatedException where
     pure =
