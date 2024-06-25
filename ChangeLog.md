@@ -1,5 +1,11 @@
 # Changelog for `annotated-exception`
 
+## 0.3.0.0
+
+- [#30](https://github.com/parsonsmatt/annotated-exception/pull/30)
+    - The `Show` and `displayException` now render the annotated exception in a
+      much nicer way.
+
 ## 0.2.0.5
 
 - [#27](https://github.com/parsonsmatt/annotated-exception/pull/27)

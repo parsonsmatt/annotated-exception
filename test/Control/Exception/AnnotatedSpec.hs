@@ -55,6 +55,29 @@ spec = do
                     SomeException $
                         AnnotatedException ["hello", "goodbye"] (SomeException TestException)
 
+    describe "displayException" $ do
+        it "is reasonably nice to look at" $ do
+            lines (displayException (AnnotatedException [] TestException))
+                `shouldBe`
+                    [ "! AnnotatedException !"
+                    , "Underlying exception type: TestException"
+                    , "displayException:"
+                    , "\tTestException"
+                    , ""
+                    , "(no callstack available)"
+                    ]
+        it "is reasonably nice to look at" $ do
+            lines (displayException (AnnotatedException [Annotation @String "asdf"] TestException))
+                `shouldBe`
+                    [ "! AnnotatedException !"
+                    , "Underlying exception type: TestException"
+                    , "displayException:"
+                    , "\tTestException"
+                    , "Annotations:"
+                    , "\t * Annotation @[Char] \"asdf\""
+                    , "(no callstack available)"
+                    ]
+
     describe "AnnotatedException can fromException a" $ do
         it "different type" $ do
             fromException (toException TestException)

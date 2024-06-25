@@ -7,6 +7,7 @@
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
@@ -77,7 +78,10 @@ data AnnotatedException exception
     { annotations :: [Annotation]
     , exception   :: exception
     }
-    deriving (Show, Functor, Foldable, Traversable)
+    deriving (Functor, Foldable, Traversable)
+
+instance (Exception exception) => Show (AnnotatedException exception) where
+    show = Safe.displayException
 
 instance Applicative AnnotatedException where
     pure =
@@ -117,6 +121,31 @@ instance (Exception exception) => Exception (AnnotatedException exception) where
         | otherwise
         =
             Nothing
+
+    displayException (AnnotatedException {..}) =
+        unlines
+            [ "! AnnotatedException !"
+            , "Underlying exception type: " <> show (typeOf exception)
+            , "displayException:"
+            , "\t" <> Safe.displayException exception
+            ]
+        <> annotationsMessage
+        <> callStackMessage
+      where
+        (callStacks, otherAnnotations) = tryAnnotations @CallStack annotations
+        callStackMessage =
+            case listToMaybe callStacks of
+                Nothing ->
+                    "(no callstack available)"
+                Just cs ->
+                    prettyCallStack cs
+        annotationsMessage =
+            case otherAnnotations of
+                [] ->
+                    "\n"
+                anns ->
+                    "Annotations:\n"
+                    <> unlines (map (\ann -> "\t * " <> show ann) anns)
 
 -- | Annotate the underlying exception with a 'CallStack'.
 --
@@ -267,13 +296,13 @@ flatten (AnnotatedException a (AnnotatedException b c)) = AnnotatedException (go
                 addCallStackToAnnotations cs bs
             Nothing ->
                 bs
-    go mcallstack (a : as) bs =
-        case castAnnotation a of
+    go mcallstack (ann : anns) bs =
+        case castAnnotation ann of
             Just cs ->
                 let newAcc = fmap (mergeCallStack cs) mcallstack <|> Just cs
-                 in go newAcc as bs
+                 in go newAcc anns bs
             Nothing ->
-                a : go mcallstack as bs
+                ann : go mcallstack anns bs
 
 tryFlatten :: SomeException -> SomeException
 tryFlatten exn =
@@ -374,7 +403,7 @@ addCallStackToException cs (AnnotatedException anns e) =
     AnnotatedException (addCallStackToAnnotations cs anns) e
 
 addCallStackToAnnotations :: CallStack -> [Annotation] -> [Annotation]
-addCallStackToAnnotations cs anns = go anns
+addCallStackToAnnotations cs = go
   where
     -- not a huge fan of the direct recursion, but it seems easier than trying
     -- to finagle a `foldr` or something
