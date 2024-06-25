@@ -77,6 +77,16 @@ spec = do
                     , "\t * Annotation @[Char] \"asdf\""
                     , "(no callstack available)"
                     ]
+        it "shows underlying exception type" $ do
+            Left exn <- try $ throwWithCallStack (AnnotatedException [Annotation @String "asdf"] TestException)
+            take 6 (lines (displayException (exn :: AnnotatedException SomeException))) `shouldBe`
+                [ "! AnnotatedException !"
+                , "Underlying exception type: TestException"
+                , "displayException:"
+                , "\tTestException"
+                , "Annotations:"
+                , "\t * Annotation @[Char] \"asdf\""
+                ]
 
     describe "AnnotatedException can fromException a" $ do
         it "different type" $ do

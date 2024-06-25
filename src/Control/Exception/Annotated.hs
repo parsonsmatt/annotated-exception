@@ -125,13 +125,17 @@ instance (Exception exception) => Exception (AnnotatedException exception) where
     displayException (AnnotatedException {..}) =
         unlines
             [ "! AnnotatedException !"
-            , "Underlying exception type: " <> show (typeOf exception)
+            , "Underlying exception type: " <> show exceptionType
             , "displayException:"
             , "\t" <> Safe.displayException exception
             ]
         <> annotationsMessage
         <> callStackMessage
       where
+        exceptionType =
+            case Safe.toException exception of
+                SomeException innerException ->
+                    typeOf innerException
         (callStacks, otherAnnotations) = tryAnnotations @CallStack annotations
         callStackMessage =
             case listToMaybe callStacks of
