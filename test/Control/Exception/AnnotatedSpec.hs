@@ -14,10 +14,10 @@ import Test.Hspec
 import Control.Exception.Annotated
 import qualified Control.Exception.Safe as Safe
 import Data.Annotation
-import GHC.Stack
-import Data.Typeable
 import Data.AnnotationSpec ()
 import Data.Maybe
+import Data.Typeable
+import GHC.Stack
 
 instance Eq CallStack where
     a == b = show a == show b
