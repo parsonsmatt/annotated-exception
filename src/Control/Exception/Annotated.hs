@@ -126,6 +126,10 @@ instance (Exception exception) => Exception (AnnotatedException exception) where
         unlines
             [ "! AnnotatedException !"
             , "Underlying exception type: " <> show exceptionType
+            , ""
+            , "show:"
+            , "\t" <> show exception
+            , ""
             , "displayException:"
             , "\t" <> Safe.displayException exception
             ]

@@ -61,6 +61,10 @@ spec = do
                 `shouldBe`
                     [ "! AnnotatedException !"
                     , "Underlying exception type: TestException"
+                    , ""
+                    , "show:"
+                    , "\tTestException"
+                    , ""
                     , "displayException:"
                     , "\tTestException"
                     , ""
@@ -71,6 +75,10 @@ spec = do
                 `shouldBe`
                     [ "! AnnotatedException !"
                     , "Underlying exception type: TestException"
+                    , ""
+                    , "show:"
+                    , "\tTestException"
+                    , ""
                     , "displayException:"
                     , "\tTestException"
                     , "Annotations:"
@@ -79,14 +87,20 @@ spec = do
                     ]
         it "shows underlying exception type" $ do
             Left exn <- try $ throwWithCallStack (AnnotatedException [Annotation @String "asdf"] TestException)
-            take 6 (lines (displayException (exn :: AnnotatedException SomeException))) `shouldBe`
-                [ "! AnnotatedException !"
-                , "Underlying exception type: TestException"
-                , "displayException:"
-                , "\tTestException"
-                , "Annotations:"
-                , "\t * Annotation @[Char] \"asdf\""
-                ]
+            let resultLines =
+                    [ "! AnnotatedException !"
+                    , "Underlying exception type: TestException"
+                    , ""
+                    , "show:"
+                    , "\tTestException"
+                    , ""
+                    , "displayException:"
+                    , "\tTestException"
+                    , "Annotations:"
+                    , "\t * Annotation @[Char] \"asdf\""
+                    ]
+            take (length resultLines) (lines (displayException (exn :: AnnotatedException SomeException))) `shouldBe`
+                resultLines
 
     describe "AnnotatedException can fromException a" $ do
         it "different type" $ do

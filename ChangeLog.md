@@ -4,7 +4,8 @@
 
 - []()
     - The `Show` instance for `AnnotatedException` attempts to peek into the
-      `SomeException` to provide a more useful exception type.
+      `SomeException` to provide a more useful exception type. Also gives the
+      output of `show`.
 
 ## 0.3.0.0
 
