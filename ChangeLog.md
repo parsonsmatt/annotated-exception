@@ -1,5 +1,12 @@
 # Changelog for `annotated-exception`
 
+## 0.3.0.1
+
+- [#31](https://github.com/parsonsmatt/annotated-exception/pull/31)
+    - The `Show` instance for `AnnotatedException` attempts to peek into the
+      `SomeException` to provide a more useful exception type. Also gives the
+      output of `show`.
+
 ## 0.3.0.0
 
 - [#30](https://github.com/parsonsmatt/annotated-exception/pull/30)
