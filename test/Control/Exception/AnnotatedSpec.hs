@@ -37,6 +37,9 @@ pass = pure ()
 emptyAnnotation :: e -> AnnotatedException e
 emptyAnnotation = pure
 
+omitEmptyLines :: String -> [String]
+omitEmptyLines = filter (/= "") . lines
+
 spec :: Spec
 spec = do
     describe "toException" $ do
@@ -56,18 +59,18 @@ spec = do
                         AnnotatedException ["hello", "goodbye"] (SomeException TestException)
 
     describe "displayException" $ do
+        it "is identical on SomeException" $ do
+            omitEmptyLines (displayException TestException)
+                `shouldBe` omitEmptyLines (displayException (SomeException TestException))
         it "is reasonably nice to look at" $ do
-            lines (displayException (AnnotatedException [] TestException))
+            omitEmptyLines (displayException (AnnotatedException [] TestException))
                 `shouldBe`
                     [ "! AnnotatedException !"
                     , "Underlying exception type: TestException"
-                    , ""
                     , "show:"
                     , "\tTestException"
-                    , ""
                     , "displayException:"
                     , "\tTestException"
-                    , ""
                     , "(no callstack available)"
                     ]
         it "is reasonably nice to look at" $ do
@@ -90,16 +93,14 @@ spec = do
             let resultLines =
                     [ "! AnnotatedException !"
                     , "Underlying exception type: TestException"
-                    , ""
                     , "show:"
                     , "\tTestException"
-                    , ""
                     , "displayException:"
                     , "\tTestException"
                     , "Annotations:"
                     , "\t * Annotation @[Char] \"asdf\""
                     ]
-            take (length resultLines) (lines (displayException (exn :: AnnotatedException SomeException))) `shouldBe`
+            take (length resultLines) (omitEmptyLines (displayException (exn :: AnnotatedException SomeException))) `shouldBe`
                 resultLines
 
     describe "AnnotatedException can fromException a" $ do

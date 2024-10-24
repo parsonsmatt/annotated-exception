@@ -1,5 +1,10 @@
 # Changelog for `annotated-exception`
 
+## 0.3.0.2
+
+- []()
+    - Fixed the tests for GHC 9.10
+
 ## 0.3.0.1
 
 - [#31](https://github.com/parsonsmatt/annotated-exception/pull/31)
