@@ -2,7 +2,7 @@
 
 ## 0.3.0.2
 
-- []()
+- [#32](https://github.com/parsonsmatt/annotated-exception/pull/32)
     - Fixed the tests for GHC 9.10
 
 ## 0.3.0.1
