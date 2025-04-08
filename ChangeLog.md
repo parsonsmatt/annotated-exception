@@ -1,5 +1,10 @@
 # Changelog for `annotated-exception`
 
+## 0.3.0.3
+
+- [#36](https://github.com/parsonsmatt/annotated-exception/pull/36)
+    - Improved the `AnotatedException` `displayException` implementation.
+
 ## 0.3.0.2
 
 - [#32](https://github.com/parsonsmatt/annotated-exception/pull/32)
