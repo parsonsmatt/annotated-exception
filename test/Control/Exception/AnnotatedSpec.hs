@@ -15,6 +15,7 @@ import Control.Exception.Annotated
 import qualified Control.Exception.Safe as Safe
 import Data.Annotation
 import Data.AnnotationSpec ()
+import Data.List (dropWhileEnd)
 import Data.Maybe
 import Data.Typeable
 import GHC.Stack
@@ -31,14 +32,20 @@ instance Eq SomeException where
     SomeException (e0 :: e0) == SomeException (e1 :: e1) =
         typeOf e0 == typeOf e1 && show e0 == show e1
 
+data TestDisplayException = TestDisplayException
+    deriving (Eq, Show)
+
+instance Exception TestDisplayException where
+    displayException _ = "i am being displayed! :)"
+
 pass :: Expectation
 pass = pure ()
 
 emptyAnnotation :: e -> AnnotatedException e
 emptyAnnotation = pure
 
-omitEmptyLines :: String -> [String]
-omitEmptyLines = filter (/= "") . lines
+trimTrailingNewlines :: String -> String
+trimTrailingNewlines = dropWhileEnd (== '\n')
 
 spec :: Spec
 spec = do
@@ -60,48 +67,64 @@ spec = do
 
     describe "displayException" $ do
         it "is identical on SomeException" $ do
-            omitEmptyLines (displayException TestException)
-                `shouldBe` omitEmptyLines (displayException (SomeException TestException))
+            trimTrailingNewlines (displayException TestException)
+                `shouldBe` trimTrailingNewlines (displayException (SomeException TestException))
+
+        it "uses show and displayException if they're different" $ do
+            lines (displayException (AnnotatedException [] TestDisplayException))
+                `shouldBe`
+                    [ "! AnnotatedException !"
+                    , "Underlying exception type: TestDisplayException"
+                    , ""
+                    , "displayException:"
+                    , "\ti am being displayed! :)"
+                    , ""
+                    , "show:"
+                    , "\tTestDisplayException"
+                    , ""
+                    , "(no callstack available)"
+                    ]
+
         it "is reasonably nice to look at" $ do
-            omitEmptyLines (displayException (AnnotatedException [] TestException))
+            lines (displayException (AnnotatedException [] TestException))
                 `shouldBe`
                     [ "! AnnotatedException !"
                     , "Underlying exception type: TestException"
-                    , "show:"
-                    , "\tTestException"
-                    , "displayException:"
-                    , "\tTestException"
+                    , ""
+                    , "TestException"
+                    , ""
                     , "(no callstack available)"
                     ]
+
         it "is reasonably nice to look at" $ do
             lines (displayException (AnnotatedException [Annotation @String "asdf"] TestException))
                 `shouldBe`
                     [ "! AnnotatedException !"
                     , "Underlying exception type: TestException"
                     , ""
-                    , "show:"
-                    , "\tTestException"
+                    , "TestException"
                     , ""
-                    , "displayException:"
-                    , "\tTestException"
                     , "Annotations:"
                     , "\t * Annotation @[Char] \"asdf\""
+                    , ""
                     , "(no callstack available)"
                     ]
+
         it "shows underlying exception type" $ do
             Left exn <- try $ throwWithCallStack (AnnotatedException [Annotation @String "asdf"] TestException)
             let resultLines =
                     [ "! AnnotatedException !"
                     , "Underlying exception type: TestException"
-                    , "show:"
-                    , "\tTestException"
-                    , "displayException:"
-                    , "\tTestException"
+                    , ""
+                    , "TestException"
+                    , ""
                     , "Annotations:"
                     , "\t * Annotation @[Char] \"asdf\""
+                    , ""
+                    , "CallStack (from HasCallStack):"
                     ]
-            take (length resultLines) (omitEmptyLines (displayException (exn :: AnnotatedException SomeException))) `shouldBe`
-                resultLines
+            take (length resultLines) (lines (displayException (exn :: AnnotatedException TestException)))
+                `shouldBe` resultLines
 
     describe "AnnotatedException can fromException a" $ do
         it "different type" $ do

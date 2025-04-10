@@ -122,38 +122,60 @@ instance (Exception exception) => Exception (AnnotatedException exception) where
         =
             Nothing
 
-    displayException (AnnotatedException {..}) =
-        unlines
+    displayException (AnnotatedException{..}) =
+        unlines $
             [ "! AnnotatedException !"
             , "Underlying exception type: " <> show exceptionType
             , ""
-            , "show:"
-            , "\t" <> show exception
-            , ""
-            , "displayException:"
-            , "\t" <> Safe.displayException exception
             ]
-        <> annotationsMessage
-        <> callStackMessage
+                <> showAndDisplayMessage
+                <> annotationsMessage
+                <> callStackMessage
       where
         exceptionType =
             case Safe.toException exception of
                 SomeException innerException ->
                     typeOf innerException
+
+        shown = show exception
+        displayed = Safe.displayException exception
+
+        -- Only include the `show` section if it's not the same as the
+        -- `displayException` output.
+        --
+        -- TODO: If the exception is multiple lines long, subsequent lines will
+        -- not be indented.
+        showAndDisplayMessage =
+            if shown == displayed
+                then
+                    [ displayed ]
+                else
+                    [ "displayException:"
+                    , "\t" <> displayed
+                    , ""
+                    , "show:"
+                    , "\t" <> shown
+                    ]
+
         (callStacks, otherAnnotations) = tryAnnotations @CallStack annotations
+
         callStackMessage =
+            [ ""
+            ] <>
             case listToMaybe callStacks of
                 Nothing ->
-                    "(no callstack available)"
+                    ["(no callstack available)"]
                 Just cs ->
-                    prettyCallStack cs
+                    [prettyCallStack cs]
+
         annotationsMessage =
             case otherAnnotations of
-                [] ->
-                    "\n"
+                [] -> []
                 anns ->
-                    "Annotations:\n"
-                    <> unlines (map (\ann -> "\t * " <> show ann) anns)
+                    [ ""
+                    , "Annotations:"
+                    ]
+                        <> (map (\ann -> "\t * " <> show ann) anns)
 
 -- | Annotate the underlying exception with a 'CallStack'.
 --
