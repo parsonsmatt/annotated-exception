@@ -15,7 +15,7 @@ import Control.Exception.Annotated
 import qualified Control.Exception.Safe as Safe
 import Data.Annotation
 import Data.AnnotationSpec ()
-import Data.List (dropWhileEnd)
+import Data.List (dropWhileEnd, intersperse)
 import Data.Maybe
 import Data.Typeable
 import GHC.Stack
@@ -44,8 +44,17 @@ pass = pure ()
 emptyAnnotation :: e -> AnnotatedException e
 emptyAnnotation = pure
 
+-- | GHC 9.10.1 introduced a regression that added an extra newline to the end
+-- of the `displayException` output for `SomeException`.
+--
+-- See: https://gitlab.haskell.org/ghc/ghc/-/issues/25052
 trimTrailingNewlines :: String -> String
 trimTrailingNewlines = dropWhileEnd (== '\n')
+
+-- | Join a list of lines with newlines.
+--
+-- Unlike `unlines`, this doesn't add a newline at the end of the string.
+joinLines = concat . intersperse "\n"
 
 spec :: Spec
 spec = do
@@ -71,8 +80,8 @@ spec = do
                 `shouldBe` trimTrailingNewlines (displayException (SomeException TestException))
 
         it "uses show and displayException if they're different" $ do
-            lines (displayException (AnnotatedException [] TestDisplayException))
-                `shouldBe`
+            displayException (AnnotatedException [] TestDisplayException)
+                `shouldBe` joinLines
                     [ "! AnnotatedException !"
                     , "Underlying exception type: TestDisplayException"
                     , ""
@@ -86,8 +95,8 @@ spec = do
                     ]
 
         it "is reasonably nice to look at" $ do
-            lines (displayException (AnnotatedException [] TestException))
-                `shouldBe`
+            displayException (AnnotatedException [] TestException)
+                `shouldBe` joinLines
                     [ "! AnnotatedException !"
                     , "Underlying exception type: TestException"
                     , ""
@@ -97,8 +106,8 @@ spec = do
                     ]
 
         it "is reasonably nice to look at" $ do
-            lines (displayException (AnnotatedException [Annotation @String "asdf"] TestException))
-                `shouldBe`
+            displayException (AnnotatedException [Annotation @String "asdf"] TestException)
+                `shouldBe` joinLines
                     [ "! AnnotatedException !"
                     , "Underlying exception type: TestException"
                     , ""
@@ -112,7 +121,7 @@ spec = do
 
         it "shows underlying exception type" $ do
             Left exn <- try $ throwWithCallStack (AnnotatedException [Annotation @String "asdf"] TestException)
-            let resultLines =
+            let result = joinLines
                     [ "! AnnotatedException !"
                     , "Underlying exception type: TestException"
                     , ""
@@ -123,8 +132,8 @@ spec = do
                     , ""
                     , "CallStack (from HasCallStack):"
                     ]
-            take (length resultLines) (lines (displayException (exn :: AnnotatedException TestException)))
-                `shouldBe` resultLines
+            take (length result) (displayException (exn :: AnnotatedException TestException))
+                `shouldBe` result
 
     describe "AnnotatedException can fromException a" $ do
         it "different type" $ do

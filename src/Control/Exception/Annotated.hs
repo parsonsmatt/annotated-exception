@@ -63,6 +63,7 @@ import Control.Exception.Safe
        (Exception, Handler(..), MonadCatch, MonadThrow, SomeException(..))
 import qualified Control.Exception.Safe as Safe
 import Data.Annotation
+import Data.List (intersperse)
 import Data.Maybe
 import qualified Data.Set as Set
 import Data.Typeable
@@ -123,7 +124,7 @@ instance (Exception exception) => Exception (AnnotatedException exception) where
             Nothing
 
     displayException (AnnotatedException{..}) =
-        unlines $
+        concat $ intersperse "\n" $
             [ "! AnnotatedException !"
             , "Underlying exception type: " <> show exceptionType
             , ""

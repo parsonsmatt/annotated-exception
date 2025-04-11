@@ -1,5 +1,12 @@
 # Changelog for `annotated-exception`
 
+## 0.3.0.4
+
+- [#37](https://github.com/parsonsmatt/annotated-exception/pull/37)
+    - Removed a trailing newline from the `AnnotatedException`
+      `displayException` implementation (this was a regression introduced in
+      0.3.0.3).
+
 ## 0.3.0.3
 
 - [#36](https://github.com/parsonsmatt/annotated-exception/pull/36)
